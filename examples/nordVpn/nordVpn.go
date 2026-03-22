@@ -16,6 +16,24 @@ import (
    "time"
 )
 
+const duration = 24*time.Hour
+
+func read_file(name string) ([]byte, error) {
+   file, err := os.Open(name)
+   if err != nil {
+      return nil, err
+   }
+   defer file.Close()
+   info, err := file.Stat()
+   if err != nil {
+      return nil, err
+   }
+   if time.Since(info.ModTime()) >= duration {
+      return nil, errors.New(duration.String())
+   }
+   return io.ReadAll(file)
+}
+
 func main() {
    log.SetFlags(log.Ltime)
    http.DefaultTransport = &http.Transport{
@@ -58,22 +76,6 @@ func (c *client) do() error {
 func write_file(name string, data []byte) error {
    log.Println("WriteFile", name)
    return os.WriteFile(name, data, os.ModePerm)
-}
-
-func read_file(name string) ([]byte, error) {
-   file, err := os.Open(name)
-   if err != nil {
-      return nil, err
-   }
-   defer file.Close()
-   info, err := file.Stat()
-   if err != nil {
-      return nil, err
-   }
-   if time.Since(info.ModTime()) >= 24*time.Hour {
-      return nil, errors.New("ModTime")
-   }
-   return io.ReadAll(file)
 }
 
 func (c *client) do_write() error {
