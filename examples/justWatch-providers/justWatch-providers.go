@@ -15,6 +15,53 @@ import (
    "strings"
 )
 
+// processCountry fetches and parses provider data for a given country.
+// It returns an ordered slice of provider slugs that match the filter, or an error.
+func processCountry(countryCode string, providerFilter map[string]bool) ([]string, error) {
+   res, err := http.Get(fmt.Sprintf("https://www.justwatch.com/%s", countryCode))
+   if err != nil {
+      return nil, fmt.Errorf("failed to get URL for country %s: %w", countryCode, err)
+   }
+   defer res.Body.Close()
+   if res.StatusCode != 200 {
+      return nil, fmt.Errorf("request failed for country %s with status code: %d %s", countryCode, res.StatusCode, res.Status)
+   }
+   data, err := io.ReadAll(res.Body)
+   if err != nil {
+      return nil, fmt.Errorf("failed to read response body for country %s: %w", countryCode, err)
+   }
+   var found bool
+   _, data, found = bytes.Cut(data, []byte("window.__DATA__="))
+   if !found {
+      return nil, fmt.Errorf("could not find 'window.__DATA__=' in the response body for country %s", countryCode)
+   }
+   data, _, found = bytes.Cut(data, []byte("</script>"))
+   if !found {
+      return nil, fmt.Errorf("could not find closing '</script>' tag after the data for country %s", countryCode)
+   }
+   var result struct {
+      State struct {
+         Constant struct {
+            Providers []struct {
+               HasTitles bool
+               Slug      string
+            }
+         }
+      }
+   }
+   if err := json.Unmarshal(data, &result); err != nil {
+      return nil, fmt.Errorf("failed to unmarshal JSON for country %s: %w", countryCode, err)
+   }
+   var foundProviders []string
+   for _, provider := range result.State.Constant.Providers {
+      // If filter is nil (for -a flag) or the slug is in the filter, add it.
+      if provider.HasTitles && (providerFilter == nil || providerFilter[provider.Slug]) {
+         foundProviders = append(foundProviders, provider.Slug)
+      }
+   }
+   return foundProviders, nil
+}
+
 func main() {
    log.SetFlags(log.Ltime)
    http.DefaultTransport = &http.Transport{
@@ -129,56 +176,4 @@ func processJSONFile(filename string) {
    for i, result := range finalResults {
       fmt.Printf("%d. (%s) %s\n", i+1, result.Country, result.Slug)
    }
-}
-
-// processCountry fetches and parses provider data for a given country.
-// It returns an ordered slice of provider slugs that match the filter, or an error.
-func processCountry(countryCode string, providerFilter map[string]bool) ([]string, error) {
-   res, err := http.Get(fmt.Sprintf("https://www.justwatch.com/%s", countryCode))
-   if err != nil {
-      return nil, fmt.Errorf("failed to get URL for country %s: %w", countryCode, err)
-   }
-   defer res.Body.Close()
-
-   if res.StatusCode != 200 {
-      return nil, fmt.Errorf("request failed for country %s with status code: %d %s", countryCode, res.StatusCode, res.Status)
-   }
-
-   bodyBytes, err := io.ReadAll(res.Body)
-   if err != nil {
-      return nil, fmt.Errorf("failed to read response body for country %s: %w", countryCode, err)
-   }
-
-   _, after, found := bytes.Cut(bodyBytes, []byte("window.__DATA__="))
-   if !found {
-      return nil, fmt.Errorf("could not find 'window.__DATA__=' in the response body for country %s", countryCode)
-   }
-
-   jsonData, _, found := bytes.Cut(after, []byte("</script>"))
-   if !found {
-      return nil, fmt.Errorf("could not find closing '</script>' tag after the data for country %s", countryCode)
-   }
-
-   var result struct {
-      State struct {
-         Constant struct {
-            Providers []struct {
-               HasTitles bool
-               Slug      string
-            }
-         }
-      }
-   }
-   if err := json.Unmarshal(jsonData, &result); err != nil {
-      return nil, fmt.Errorf("failed to unmarshal JSON for country %s: %w", countryCode, err)
-   }
-
-   var foundProviders []string
-   for _, provider := range result.State.Constant.Providers {
-      // If filter is nil (for -a flag) or the slug is in the filter, add it.
-      if provider.HasTitles && (providerFilter == nil || providerFilter[provider.Slug]) {
-         foundProviders = append(foundProviders, provider.Slug)
-      }
-   }
-   return foundProviders, nil
 }
