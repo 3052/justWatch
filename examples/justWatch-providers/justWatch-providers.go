@@ -4,6 +4,7 @@ import (
    "bytes"
    "cmp"
    "encoding/json"
+   "errors"
    "flag"
    "fmt"
    "io"
@@ -14,6 +15,24 @@ import (
    "slices"
    "strings"
 )
+
+func get_slugs(data string) ([]string, error) {
+   var slugs []string
+   for {
+      _, after, found := strings.Cut(data, ".slug=")
+      if !found {
+         break
+      }
+      slugVal, _, found := strings.Cut(after[2:], `\"`)
+      if !found {
+         return nil, errors.New("closing quote not found")
+      }
+      slugs = append(slugs, slugVal)
+      // Advance the search window to find the next one
+      data = after 
+   }
+   return slugs, nil
+}
 
 // processCountry fetches and parses provider data for a given country.
 // It returns an ordered slice of provider slugs that match the filter, or an error.
