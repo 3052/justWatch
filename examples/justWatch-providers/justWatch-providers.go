@@ -1,7 +1,6 @@
 package main
 
 import (
-   "bytes"
    "cmp"
    "encoding/json"
    "errors"
@@ -37,45 +36,28 @@ func get_slugs(data string) ([]string, error) {
 // processCountry fetches and parses provider data for a given country.
 // It returns an ordered slice of provider slugs that match the filter, or an error.
 func processCountry(countryCode string, providerFilter map[string]bool) ([]string, error) {
-   res, err := http.Get(fmt.Sprintf("https://www.justwatch.com/%s", countryCode))
+   resp, err := http.Get(fmt.Sprintf("https://www.justwatch.com/%s", countryCode))
    if err != nil {
       return nil, fmt.Errorf("failed to get URL for country %s: %w", countryCode, err)
    }
-   defer res.Body.Close()
-   if res.StatusCode != 200 {
-      return nil, fmt.Errorf("request failed for country %s with status code: %d %s", countryCode, res.StatusCode, res.Status)
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return nil, fmt.Errorf("request failed for country %s with status code: %d %s", countryCode, resp.StatusCode, resp.Status)
    }
-   data, err := io.ReadAll(res.Body)
+   var data strings.Builder
+   _, err = io.Copy(&data, resp.Body)
    if err != nil {
-      return nil, fmt.Errorf("failed to read response body for country %s: %w", countryCode, err)
+      return nil, err
    }
-   var found bool
-   _, data, found = bytes.Cut(data, []byte("window.__DATA__="))
-   if !found {
-      return nil, fmt.Errorf("could not find 'window.__DATA__=' in the response body for country %s", countryCode)
-   }
-   data, _, found = bytes.Cut(data, []byte("</script>"))
-   if !found {
-      return nil, fmt.Errorf("could not find closing '</script>' tag after the data for country %s", countryCode)
-   }
-   var result struct {
-      State struct {
-         Constant struct {
-            Providers []struct {
-               HasTitles bool
-               Slug      string
-            }
-         }
-      }
-   }
-   if err := json.Unmarshal(data, &result); err != nil {
-      return nil, fmt.Errorf("failed to unmarshal JSON for country %s: %w", countryCode, err)
+   slugs, err := get_slugs(data.String())
+   if err != nil {
+      return nil, err
    }
    var foundProviders []string
-   for _, provider := range result.State.Constant.Providers {
+   for _, slug := range slugs {
       // If filter is nil (for -a flag) or the slug is in the filter, add it.
-      if provider.HasTitles && (providerFilter == nil || providerFilter[provider.Slug]) {
-         foundProviders = append(foundProviders, provider.Slug)
+      if providerFilter == nil || providerFilter[slug] {
+         foundProviders = append(foundProviders, slug)
       }
    }
    return foundProviders, nil
