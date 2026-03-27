@@ -12,16 +12,17 @@ import (
 // limit <= -1 for default
 // limit == 0 for all
 func WriteServers(limit int) ([]byte, error) {
-   var url_data url.URL
-   url_data.Scheme = "https"
-   url_data.Host = "api.nordvpn.com"
-   url_data.Path = "/v1/servers"
-   if limit >= 0 {
-      url_data.RawQuery = "limit=" + strconv.Itoa(limit)
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host: "api.nordvpn.com",
+         Path: "/v1/servers",
+      },
+      Header: http.Header{},
    }
-   var req http.Request
-   req.URL = &url_data
-   req.Header = http.Header{}
+   if limit >= 0 {
+      req.URL.RawQuery = "limit=" + strconv.Itoa(limit)
+   }
    resp, err := http.DefaultClient.Do(&req)
    if err != nil {
       return nil, err
