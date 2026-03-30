@@ -16,6 +16,35 @@ import (
    "time"
 )
 
+func (c *client) do_country_code() error {
+   data, err := read_file(c.cache)
+   if err != nil {
+      return err
+   }
+   servers, err := nordVpn.ReadServers(data)
+   if err != nil {
+      return err
+   }
+   username, err := output("credential", "-h=api.nordvpn.com", "-k=username")
+   if err != nil {
+      return err
+   }
+   password, err := output("credential", "-h=api.nordvpn.com")
+   if err != nil {
+      return err
+   }
+   for _, server := range servers {
+      if server.ProxySsl() {
+         if server.Country(c.country_code) {
+            fmt.Println(
+               nordVpn.FormatProxy(username, password, server.Hostname),
+            )
+         }
+      }
+   }
+   return nil
+}
+
 const duration = 24*time.Hour
 
 func read_file(name string) ([]byte, error) {
@@ -104,33 +133,4 @@ func output(name string, arg ...string) (string, error) {
       return "", err
    }
    return data.String(), nil
-}
-
-func (c *client) do_country_code() error {
-   data, err := read_file(c.cache)
-   if err != nil {
-      return err
-   }
-   servers, err := nordVpn.ReadServers(data)
-   if err != nil {
-      return err
-   }
-   username, err := output("credential", "-h=api.nordvpn.com", "-k=username")
-   if err != nil {
-      return err
-   }
-   password, err := output("credential", "-h=api.nordvpn.com")
-   if err != nil {
-      return err
-   }
-   for _, server := range servers {
-      if server.ProxySsl() {
-         if server.Country(c.country_code) {
-            fmt.Println(
-               nordVpn.FormatProxy(username, password, server.Hostname),
-            )
-         }
-      }
-   }
-   return nil
 }
