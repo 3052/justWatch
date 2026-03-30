@@ -29,7 +29,7 @@ func (c *client) do_country_code() error {
    if err != nil {
       return err
    }
-   password, err := output("credential", "-h=api.nordvpn.com")
+   password, err := output("credential", "-h=api.nordvpn.com", "-k=password")
    if err != nil {
       return err
    }
