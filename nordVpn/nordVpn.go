@@ -15,8 +15,8 @@ func WriteServers(limit int) ([]byte, error) {
    req := http.Request{
       URL: &url.URL{
          Scheme: "https",
-         Host: "api.nordvpn.com",
-         Path: "/v1/servers",
+         Host:   "api.nordvpn.com",
+         Path:   "/v1/servers",
       },
       Header: http.Header{},
    }

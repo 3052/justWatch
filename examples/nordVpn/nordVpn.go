@@ -45,7 +45,7 @@ func (c *client) do_country_code() error {
    return nil
 }
 
-const duration = 24*time.Hour
+const duration = 24 * time.Hour
 
 func read_file(name string) ([]byte, error) {
    file, err := os.Open(name)

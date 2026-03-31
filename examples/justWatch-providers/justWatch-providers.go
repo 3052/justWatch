@@ -28,7 +28,7 @@ func get_slugs(data string) ([]string, error) {
       }
       slugs = append(slugs, slugVal)
       // Advance the search window to find the next one
-      data = after 
+      data = after
    }
    return slugs, nil
 }
