@@ -1,7 +1,7 @@
 package main
 
 import (
-   "cmp"
+   "bytes"
    "encoding/json"
    "errors"
    "flag"
@@ -11,156 +11,173 @@ import (
    "net/http"
    "net/url"
    "os"
-   "slices"
+   "sort"
    "strings"
+   "time"
 )
 
-func get_slugs(data string) ([]string, error) {
-   var slugs []string
-   for {
-      _, after, found := strings.Cut(data, ".slug=")
-      if !found {
-         break
-      }
-      slugVal, _, found := strings.Cut(after[2:], `\"`)
-      if !found {
-         return nil, errors.New("closing quote not found")
-      }
-      slugs = append(slugs, slugVal)
-      // Advance the search window to find the next one
-      data = after
-   }
-   return slugs, nil
-}
-
-// processCountry fetches and parses provider data for a given country.
-// It returns an ordered slice of provider slugs that match the filter, or an error.
-func processCountry(countryCode string, providerFilter map[string]bool) ([]string, error) {
-   resp, err := http.Get(fmt.Sprintf("https://www.justwatch.com/%s", countryCode))
-   if err != nil {
-      return nil, fmt.Errorf("failed to get URL for country %s: %w", countryCode, err)
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != 200 {
-      return nil, fmt.Errorf("request failed for country %s with status code: %d %s", countryCode, resp.StatusCode, resp.Status)
-   }
-   var data strings.Builder
-   _, err = io.Copy(&data, resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   slugs, err := get_slugs(data.String())
-   if err != nil {
-      return nil, err
-   }
-   var foundProviders []string
-   for _, slug := range slugs {
-      // If the slug is in the filter, add it.
-      if providerFilter[slug] {
-         foundProviders = append(foundProviders, slug)
-      }
-   }
-   return foundProviders, nil
+// Result holds the final data we want to output
+type Result struct {
+   Country    string
+   Provider   string
+   TotalCount float64
 }
 
 func main() {
-   log.SetFlags(log.Ltime)
-   http.DefaultTransport = &http.Transport{
-      DisableKeepAlives: true, // github.com/golang/go/issues/25793
-      Proxy: func(req *http.Request) (*url.URL, error) {
-         log.Println(req.Method, req.URL)
-         return nil, nil
-      },
-   }
-
-   jsonFile := flag.String("b", "", "JSON file with a list of provider URLs")
+   // 1. Define and parse the command-line flag for the input file
+   inputFile := flag.String("input", "", "Path to the JSON file containing URLs (required)")
    flag.Parse()
 
-   if *jsonFile == "" {
+   if *inputFile == "" {
+      fmt.Println("Error: the -input flag is required.")
       flag.Usage()
-      return
+      os.Exit(1)
    }
 
-   // Handle -b flag
-   processJSONFile(*jsonFile)
-}
-
-// processJSONFile handles the logic for the -b flag: reading the file,
-// parsing URLs, sorting countries, and fetching/filtering provider slugs.
-func processJSONFile(filename string) {
-   file, err := os.ReadFile(filename)
+   // 2. Read the JSON file containing the URLs
+   fileData, err := os.ReadFile(*inputFile)
    if err != nil {
-      log.Fatalf("failed to read json file: %v", err)
+      log.Fatalf("Failed to read file '%s': %v", *inputFile, err)
    }
 
-   var providerURLs []string
-   if err := json.Unmarshal(file, &providerURLs); err != nil {
-      log.Fatalf("failed to unmarshal json file: %v", err)
+   var urls []string
+   if err := json.Unmarshal(fileData, &urls); err != nil {
+      log.Fatalf("Failed to parse JSON in '%s': %v", *inputFile, err)
    }
 
-   countriesToProvidersList := make(map[string][]string)
-   for _, providerURL := range providerURLs {
-      parsedURL, err := url.Parse(providerURL)
+   // 3. Process URLs sequentially (one at a time)
+   var results []Result
+
+   // Custom HTTP client with a timeout
+   client := &http.Client{Timeout: 15 * time.Second}
+
+   fmt.Println("Fetching data sequentially, please wait...")
+
+   for i, targetURL := range urls {
+      fmt.Printf("[%d/%d] Fetching %s...\n", i+1, len(urls), targetURL)
+      
+      res, err := processURL(client, targetURL)
       if err != nil {
-         log.Printf("failed to parse URL %s: %v", providerURL, err)
+         log.Printf("  -> Error: %v\n", err)
          continue
       }
-      pathParts := strings.Split(strings.Trim(parsedURL.Path, "/"), "/")
-      if len(pathParts) != 3 {
-         log.Printf("invalid provider URL format: %s", providerURL)
-         continue
-      }
-      country, providerSlug := pathParts[0], pathParts[2]
-      countriesToProvidersList[country] = append(countriesToProvidersList[country], providerSlug)
+
+      results = append(results, res)
    }
 
-   type CountryInfo struct {
-      Code      string
-      Providers []string
-   }
-   var sortedCountries []*CountryInfo
-   for code, providers := range countriesToProvidersList {
-      sortedCountries = append(sortedCountries, &CountryInfo{Code: code, Providers: providers})
-   }
-   slices.SortFunc(sortedCountries, func(a, b *CountryInfo) int {
-      return cmp.Or(
-         // Primary: Descending sort by length (b - a)
-         len(b.Providers)-len(a.Providers),
-         // Secondary: Ascending sort by Code
-         cmp.Compare(a.Code, b.Code),
-      )
+   // 4. Sort the results descending by TotalCount
+   sort.Slice(results, func(i, j int) bool {
+      return results[i].TotalCount > results[j].TotalCount
    })
 
-   type FinalResult struct {
-      Country string
-      Slug    string
+   // 5. Output the formatted list
+   fmt.Printf("\n%-10s | %-30s | %s\n", "COUNTRY", "PROVIDER", "TOTAL COUNT")
+   fmt.Println(strings.Repeat("-", 60))
+   for _, r := range results {
+      fmt.Printf("%-10s | %-30s | %.0f\n", r.Country, r.Provider, r.TotalCount)
    }
-   var finalResults []FinalResult
+}
 
-   for _, countryInfo := range sortedCountries {
-      if len(countryInfo.Providers) == 1 {
-         finalResults = append(finalResults, FinalResult{Country: countryInfo.Code, Slug: countryInfo.Providers[0]})
-         continue
-      }
+// processURL handles the fetching and parsing for a single URL
+func processURL(client *http.Client, rawURL string) (Result, error) {
+   var result Result
 
-      providerFilter := make(map[string]bool)
-      for _, slug := range countryInfo.Providers {
-         providerFilter[slug] = true
-      }
-
-      foundSlugs, err := processCountry(countryInfo.Code, providerFilter)
-      if err != nil {
-         log.Printf("error processing country %s: %v", countryInfo.Code, err)
-         continue
-      }
-
-      for _, slug := range foundSlugs {
-         finalResults = append(finalResults, FinalResult{Country: countryInfo.Code, Slug: slug})
-      }
+   // Parse the URL to extract Country and Provider
+   parsedURL, err := url.Parse(rawURL)
+   if err != nil {
+      return result, fmt.Errorf("invalid URL: %v", err)
    }
 
-   // Print the final, consolidated list
-   for i, result := range finalResults {
-      fmt.Printf("%d. (%s) %s\n", i+1, result.Country, result.Slug)
+   // path looks like "/us/provider/disney-plus" or "/se/leverantör/draken-films"
+   pathParts := strings.Split(strings.Trim(parsedURL.Path, "/"), "/")
+   if len(pathParts) >= 3 {
+      result.Country = pathParts[0]
+      // The provider name is always the last part of the path
+      result.Provider = pathParts[len(pathParts)-1]
+   } else {
+      return result, errors.New("unexpected URL structure")
    }
+
+   // Create request and set User-Agent to avoid being blocked
+   req, err := http.NewRequest("GET", rawURL, nil)
+   if err != nil {
+      return result, err
+   }
+   req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36")
+
+   // Execute HTTP request
+   resp, err := client.Do(req)
+   if err != nil {
+      return result, err
+   }
+   defer resp.Body.Close()
+
+   if resp.StatusCode != http.StatusOK {
+      return result, fmt.Errorf("received non-200 status code: %d", resp.StatusCode)
+   }
+
+   htmlBody, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return result, err
+   }
+
+   // Feed body into the provided ExtractApolloState function
+   stateJSON, err := ExtractApolloState(htmlBody)
+   if err != nil {
+      return result, err
+   }
+
+   // Clean up potential trailing semicolon (e.g. `window.__APOLLO_STATE__={};`)
+   // so the standard json.Unmarshal doesn't throw a syntax error.
+   stateJSON = bytes.TrimSpace(stateJSON)
+   stateJSON = bytes.TrimSuffix(stateJSON, []byte(";"))
+
+   // Feed state into the provided ExtractTotalCount function
+   count, err := ExtractTotalCount(stateJSON)
+   if err != nil {
+      return result, err
+   }
+
+   result.TotalCount = count
+   return result, nil
+}
+
+// --- Functions Provided By You Below ---
+
+func ExtractApolloState(html []byte) ([]byte, error) {
+   _, after, found := bytes.Cut(html, []byte("window.__APOLLO_STATE__="))
+   if !found {
+      return nil, errors.New("__APOLLO_STATE__ not found in HTML")
+   }
+   state, _, found := bytes.Cut(after, []byte("</script>"))
+   if !found {
+      return nil, errors.New("closing script tag not found")
+   }
+   return state, nil
+}
+
+func ExtractTotalCount(jsonData []byte) (float64, error) {
+   // Unmarshal into a generic map
+   var data map[string]interface{}
+   if err := json.Unmarshal(jsonData, &data); err != nil {
+      return 0, fmt.Errorf("failed to parse JSON: %v", err)
+   }
+   // Iterate through the top-level keys
+   for key, value := range data {
+      // Specifically target the popularTitles query to avoid grabbing
+      // the totalCount from streamingCharts
+      if strings.HasPrefix(key, "$ROOT_QUERY.popularTitles") {
+         // Type assert the value to a nested map
+         if obj, isMap := value.(map[string]interface{}); isMap {
+            // Check if "totalCount" exists inside this object
+            if tc, exists := obj["totalCount"]; exists {
+               // encoding/json parses JSON numbers as float64 by default
+               if totalCount, isFloat := tc.(float64); isFloat {
+                  return totalCount, nil
+               }
+            }
+         }
+      }
+   }
+   return 0, fmt.Errorf("totalCount not found in JSON")
 }
