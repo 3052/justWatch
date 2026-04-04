@@ -82,9 +82,9 @@ func main() {
 
    // 5. Output as a Markdown table
    fmt.Printf("\n### Results (From Year %d)\n\n", *yearFlag)
-   fmt.Println("| # | Country | Provider | Titles |")
-   fmt.Println("|---|---|---|---|")
-   for i, r := range results {
-      fmt.Printf("| %d | %s | %s | %.0f |\n", i+1, r.Country, r.Provider, r.TotalCount)
+   fmt.Println("| Titles | Country | Provider |")
+   fmt.Println("|---|---|---|")
+   for _, r := range results {
+      fmt.Printf("| %.0f | %s | %s |\n", r.TotalCount, r.Country, r.Provider)
    }
 }
