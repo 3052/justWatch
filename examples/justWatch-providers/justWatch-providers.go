@@ -55,8 +55,8 @@ func processCountry(countryCode string, providerFilter map[string]bool) ([]strin
    }
    var foundProviders []string
    for _, slug := range slugs {
-      // If filter is nil (for -a flag) or the slug is in the filter, add it.
-      if providerFilter == nil || providerFilter[slug] {
+      // If the slug is in the filter, add it.
+      if providerFilter[slug] {
          foundProviders = append(foundProviders, slug)
       }
    }
@@ -73,30 +73,16 @@ func main() {
       },
    }
 
-   countryCode := flag.String("a", "", "Country code to process (e.g., 'us')")
    jsonFile := flag.String("b", "", "JSON file with a list of provider URLs")
    flag.Parse()
 
-   if *countryCode == "" && *jsonFile == "" {
+   if *jsonFile == "" {
       flag.Usage()
       return
    }
 
-   // Handle -a flag
-   if *countryCode != "" {
-      providers, err := processCountry(*countryCode, nil)
-      if err != nil {
-         log.Fatalf("failed to process country %s: %v", *countryCode, err)
-      }
-      for i, slug := range providers {
-         fmt.Printf("%d. (%s) %s\n", i+1, *countryCode, slug)
-      }
-   }
-
    // Handle -b flag
-   if *jsonFile != "" {
-      processJSONFile(*jsonFile)
-   }
+   processJSONFile(*jsonFile)
 }
 
 // processJSONFile handles the logic for the -b flag: reading the file,
