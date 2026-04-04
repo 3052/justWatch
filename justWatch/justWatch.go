@@ -160,6 +160,20 @@ var EnUs = Locales{
    {FullLocale: "ar_YE", Country: "YE", CountryName: "Yemen"},
 }
 
+// https://justwatch.com/us/movie/goodfellas
+func GetPath(rawUrl string) (string, error) {
+   url_parse, err := url.Parse(rawUrl)
+   if err != nil {
+      return "", err
+   }
+   if url_parse.Scheme == "" {
+      return "", errors.New("invalid URL: scheme is missing")
+   }
+   return url_parse.Path, nil
+}
+
+///
+
 func (c *Content) Fetch(path string) error {
    req := http.Request{
       URL: &url.URL{
@@ -181,9 +195,58 @@ func (c *Content) Fetch(path string) error {
    return json.NewDecoder(resp.Body).Decode(c)
 }
 
+func (h *HrefLangTag) Offers(localeVar *Locale) ([]Offer, error) {
+   data, err := json.Marshal(map[string]any{
+      "query": get_url_title_details,
+      "variables": map[string]string{
+         "country":  localeVar.Country,
+         "fullPath": h.Href,
+      },
+   })
+   if err != nil {
+      return nil, err
+   }
+   resp, err := http.Post(
+      "https://apis.justwatch.com/graphql", "application/json",
+      bytes.NewReader(data),
+   )
+   if err != nil {
+      return nil, err
+   }
+   if resp.StatusCode != http.StatusOK {
+      var data strings.Builder
+      err = resp.Write(&data)
+      if err != nil {
+         return nil, err
+      }
+      return nil, errors.New(data.String())
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Data struct {
+         Url struct {
+            Node struct {
+               Offers []Offer
+            }
+         }
+      }
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return result.Data.Url.Node.Offers, nil
+}
+
 type HrefLangTag struct {
    Href   string // /ar/pelicula/mulholland-drive
    Locale string // es_AR
+}
+
+type Locale struct {
+   FullLocale  string
+   Country     string
+   CountryName string
 }
 
 func (l Locales) Locale(tag *HrefLangTag) (*Locale, bool) {
@@ -193,12 +256,6 @@ func (l Locales) Locale(tag *HrefLangTag) (*Locale, bool) {
       }
    }
    return nil, false
-}
-
-type Locale struct {
-   FullLocale  string
-   Country     string
-   CountryName string
 }
 
 type Locales []Locale
@@ -248,59 +305,10 @@ func FetchLocales(language string) (Locales, error) {
    return result.Data.Locales, nil
 }
 
-func (h *HrefLangTag) Offers(localeVar *Locale) ([]Offer, error) {
-   data, err := json.Marshal(map[string]any{
-      "query": get_url_title_details,
-      "variables": map[string]string{
-         "country":  localeVar.Country,
-         "fullPath": h.Href,
-      },
-   })
-   if err != nil {
-      return nil, err
-   }
-   resp, err := http.Post(
-      "https://apis.justwatch.com/graphql", "application/json",
-      bytes.NewReader(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-   if resp.StatusCode != http.StatusOK {
-      var data strings.Builder
-      err = resp.Write(&data)
-      if err != nil {
-         return nil, err
-      }
-      return nil, errors.New(data.String())
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Data struct {
-         Url struct {
-            Node struct {
-               Offers []Offer
-            }
-         }
-      }
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return result.Data.Url.Node.Offers, nil
-}
-
-// https://justwatch.com/us/movie/goodfellas
-func GetPath(rawUrl string) (string, error) {
-   u, err := url.Parse(rawUrl)
-   if err != nil {
-      return "", err
-   }
-   if u.Scheme == "" {
-      return "", errors.New("invalid URL: scheme is missing")
-   }
-   return u.Path, nil
+type Offer struct {
+   ElementCount     int
+   MonetizationType string
+   StandardWebUrl   string
 }
 
 type Content struct {
@@ -413,10 +421,4 @@ func Deduplicate(offers []*EnrichedOffer) []*EnrichedOffer {
          a.Offer.ElementCount == b.Offer.ElementCount &&
          a.Locale.FullLocale == b.Locale.FullLocale
    })
-}
-
-type Offer struct {
-   ElementCount     int
-   MonetizationType string
-   StandardWebUrl   string
 }

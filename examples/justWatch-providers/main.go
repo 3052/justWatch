@@ -6,6 +6,7 @@ import (
    "fmt"
    "log"
    "net/http"
+   "net/url"
    "os"
    "sort"
    "strings"
@@ -13,12 +14,13 @@ import (
 )
 
 func main() {
-   // 1. Define and parse the command-line flag for the input file
+   // 1. Define and parse the command-line flags
    inputFile := flag.String("input", "", "Path to the JSON file containing URLs (required)")
+   yearFlag := flag.Int("year", 0, "Release year from (e.g., 2025) (required)")
    flag.Parse()
 
-   if *inputFile == "" {
-      fmt.Println("Error: the -input flag is required.")
+   if *inputFile == "" || *yearFlag == 0 {
+      fmt.Println("Error: both -input and -year flags are required.")
       flag.Usage()
       os.Exit(1)
    }
@@ -42,10 +44,23 @@ func main() {
 
    fmt.Println("Fetching data sequentially, please wait...")
 
-   for i, targetURL := range urls {
+   for i, rawTargetURL := range urls {
+      // Safely parse the URL and add the query string parameter
+      u, err := url.Parse(rawTargetURL)
+      if err != nil {
+         log.Printf("[%d/%d] Skipping invalid URL %s: %v\n", i+1, len(urls), rawTargetURL, err)
+         continue
+      }
+
+      q := u.Query()
+      q.Set("release_year_from", fmt.Sprintf("%d", *yearFlag))
+      u.RawQuery = q.Encode()
+      targetURL := u.String()
+
       fmt.Printf("[%d/%d] Fetching %s...\n", i+1, len(urls), targetURL)
 
-      res, err := processURL(client, targetURL)
+      // Pass the year flag into processURL
+      res, err := processURL(client, targetURL, *yearFlag)
       if err != nil {
          // If it's the specific totalCount error, halt the entire program immediately
          if strings.Contains(err.Error(), "totalCount not found in JSON") {
@@ -65,10 +80,11 @@ func main() {
       return results[i].TotalCount > results[j].TotalCount
    })
 
-   // 5. Output as an ordered list
-   fmt.Println("\nResults:")
+   // 5. Output as a Markdown table
+   fmt.Printf("\n### Results (From Year %d)\n\n", *yearFlag)
+   fmt.Println("| # | Country | Provider | Titles |")
+   fmt.Println("|---|---|---|---|")
    for i, r := range results {
-      // Wrapped the titles count in parentheses
-      fmt.Printf("%d. %s %s (%.0f titles)\n", i+1, r.Country, r.Provider, r.TotalCount)
+      fmt.Printf("| %d | %s | %s | %.0f |\n", i+1, r.Country, r.Provider, r.TotalCount)
    }
 }

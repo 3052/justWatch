@@ -19,7 +19,8 @@ type Result struct {
 }
 
 // processURL handles the fetching and parsing for a single URL
-func processURL(client *http.Client, rawURL string) (Result, error) {
+// Note: year is passed down to be used by the extractor
+func processURL(client *http.Client, rawURL string, year int) (Result, error) {
    var result Result
 
    // Parse the URL to extract Country and Provider
@@ -66,8 +67,8 @@ func processURL(client *http.Client, rawURL string) (Result, error) {
    stateJSON = bytes.TrimSpace(stateJSON)
    stateJSON = bytes.TrimSuffix(stateJSON, []byte(";"))
 
-   // Feed state into the provided ExtractTotalCount function
-   count, err := ExtractTotalCount(stateJSON)
+   // Feed state and year into ExtractTotalCount
+   count, err := ExtractTotalCount(stateJSON, year)
    if err != nil {
       return result, err
    }
@@ -90,21 +91,30 @@ func ExtractApolloState(html []byte) ([]byte, error) {
    return state, nil
 }
 
-func ExtractTotalCount(jsonData []byte) (float64, error) {
+// ExtractTotalCount now takes year as an argument to filter the correct query
+func ExtractTotalCount(jsonData []byte, year int) (float64, error) {
    // Unmarshal into a generic map
    var data map[string]interface{}
    if err := json.Unmarshal(jsonData, &data); err != nil {
       return 0, fmt.Errorf("failed to parse JSON: %v", err)
    }
+
    // Drill down into the "defaultClient" object
    defaultClient, ok := data["defaultClient"].(map[string]interface{})
    if !ok {
       return 0, fmt.Errorf("defaultClient key missing or invalid format")
    }
+
+   // Prepare the string format we expect to see in the Apollo State key
+   expectedYearStr := fmt.Sprintf("%d", year)
+
    // Iterate through the keys inside defaultClient
    for key, value := range defaultClient {
-      // Target the popularTitles query
-      if strings.HasPrefix(key, "$ROOT_QUERY.popularTitles") {
+      // Target the popularTitles query that specifically contains the releaseYear filter
+      if strings.HasPrefix(key, "$ROOT_QUERY.popularTitles") &&
+         strings.Contains(key, "releaseYear") &&
+         strings.Contains(key, expectedYearStr) {
+
          // Type assert the value to a nested map
          if obj, isMap := value.(map[string]interface{}); isMap {
             // Check if "totalCount" exists inside this object
