@@ -6,7 +6,7 @@ import (
 )
 
 func Test(t *testing.T) {
-   locales_data, err := NewLocales("en-US")
+   locales_data, err := FetchLocales("en-US")
    if err != nil {
       t.Fatal(err)
    }

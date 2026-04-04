@@ -17,32 +17,6 @@ import (
    "strings"
 )
 
-func (c *Content) Fetch(path string) error {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme:   "https",
-         Host:     "apis.justwatch.com",
-         Path:     "/content/urls",
-         RawQuery: url.Values{"path": {path}}.Encode(),
-      },
-      Header: http.Header{},
-   }
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return errors.New(resp.Status)
-   }
-   return json.NewDecoder(resp.Body).Decode(c)
-}
-
-type HrefLangTag struct {
-   Href   string // /ar/pelicula/mulholland-drive
-   Locale string // es_AR
-}
-
 // 2025-11-04
 var EnUs = Locales{
    {FullLocale: "en_US", Country: "US", CountryName: "United States"},
@@ -186,6 +160,32 @@ var EnUs = Locales{
    {FullLocale: "ar_YE", Country: "YE", CountryName: "Yemen"},
 }
 
+func (c *Content) Fetch(path string) error {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme:   "https",
+         Host:     "apis.justwatch.com",
+         Path:     "/content/urls",
+         RawQuery: url.Values{"path": {path}}.Encode(),
+      },
+      Header: http.Header{},
+   }
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return errors.New(resp.Status)
+   }
+   return json.NewDecoder(resp.Body).Decode(c)
+}
+
+type HrefLangTag struct {
+   Href   string // /ar/pelicula/mulholland-drive
+   Locale string // es_AR
+}
+
 func (l Locales) Locale(tag *HrefLangTag) (*Locale, bool) {
    for _, locale_data := range l {
       if locale_data.FullLocale == tag.Locale {
@@ -203,7 +203,7 @@ type Locale struct {
 
 type Locales []Locale
 
-func Hello(language string) (Locales, error) {
+func FetchLocales(language string) (Locales, error) {
    data, err := json.Marshal(map[string]any{
       "query": backend_constants_fetcher_query,
       "variables": map[string]string{
