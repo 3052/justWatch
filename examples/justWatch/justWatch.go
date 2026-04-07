@@ -15,45 +15,6 @@ import (
    "time"
 )
 
-func main() {
-   log.SetFlags(log.Ltime)
-   http.DefaultTransport = &http.Transport{
-      DisableKeepAlives: true, // github.com/golang/go/issues/25793
-      Proxy: func(req *http.Request) (*url.URL, error) {
-         if req.URL.Path != "/graphql" {
-            if req.Method == "" {
-               req.Method = "GET"
-            }
-            log.Println(req.Method, req.URL)
-         }
-         return nil, nil
-      },
-   }
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-func (c *client) do() error {
-   flag.StringVar(&c.address, "a", "", "address")
-   flag.DurationVar(&c.sleep, "s", 99*time.Millisecond, "sleep")
-   flag.StringVar(&c.filters, "f", "BUY,CINEMA,FAST,RENT", "filters")
-   flag.Parse()
-
-   if c.address != "" {
-      return c.do_address()
-   }
-   flag.Usage()
-   return nil
-}
-
-type client struct {
-   address string
-   filters string
-   sleep   time.Duration
-}
-
 func (c *client) do_address() error {
    url_path, err := justWatch.GetPath(c.address)
    if err != nil {
@@ -111,4 +72,42 @@ func (c *client) do_address() error {
    name := path.Base(url_path) + ".md"
    log.Println("WriteFile", name)
    return os.WriteFile(name, data.Bytes(), os.ModePerm)
+}
+func main() {
+   log.SetFlags(log.Ltime)
+   http.DefaultTransport = &http.Transport{
+      DisableKeepAlives: true, // github.com/golang/go/issues/25793
+      Proxy: func(req *http.Request) (*url.URL, error) {
+         if req.URL.Path != "/graphql" {
+            if req.Method == "" {
+               req.Method = "GET"
+            }
+            log.Println(req.Method, req.URL)
+         }
+         return nil, nil
+      },
+   }
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+func (c *client) do() error {
+   flag.StringVar(&c.address, "a", "", "address")
+   flag.DurationVar(&c.sleep, "s", 99*time.Millisecond, "sleep")
+   flag.StringVar(&c.filters, "f", "BUY,CINEMA,FAST,RENT", "filters")
+   flag.Parse()
+
+   if c.address != "" {
+      return c.do_address()
+   }
+   flag.Usage()
+   return nil
+}
+
+type client struct {
+   address string
+   filters string
+   sleep   time.Duration
 }
