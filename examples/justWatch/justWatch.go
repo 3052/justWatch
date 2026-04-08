@@ -5,12 +5,11 @@ import (
    "bytes"
    "errors"
    "flag"
+   "fmt"
    "log"
    "net/http"
-   "net/url"
    "os"
    "path"
-   "strconv"
    "strings"
    "time"
 )
@@ -65,7 +64,7 @@ func (c *client) do_address() error {
          data.WriteString(enriched.Offer.MonetizationType)
          if enriched.Offer.ElementCount >= 1 {
             data.WriteString("\ncount = ")
-            data.WriteString(strconv.Itoa(enriched.Offer.ElementCount))
+            fmt.Fprint(data, enriched.Offer.ElementCount)
          }
       }
    }
@@ -73,20 +72,19 @@ func (c *client) do_address() error {
    log.Println("WriteFile", name)
    return os.WriteFile(name, data.Bytes(), os.ModePerm)
 }
+
+type transport [1]http.Transport
+
+func (t *transport) RoundTrip(req *http.Request) (*http.Response, error) {
+   if req.URL.Path != "/graphql" {
+      log.Println(req.Method, req.URL)
+   }
+   return t[0].RoundTrip(req)
+}
+
 func main() {
    log.SetFlags(log.Ltime)
-   http.DefaultTransport = &http.Transport{
-      DisableKeepAlives: true, // github.com/golang/go/issues/25793
-      Proxy: func(req *http.Request) (*url.URL, error) {
-         if req.URL.Path != "/graphql" {
-            if req.Method == "" {
-               req.Method = "GET"
-            }
-            log.Println(req.Method, req.URL)
-         }
-         return nil, nil
-      },
-   }
+   http.DefaultTransport = &transport{}
    err := new(client).do()
    if err != nil {
       log.Fatal(err)

@@ -2,13 +2,13 @@ package main
 
 import (
    "41.neocities.org/verde/nordVpn"
+   "encoding/json"
    "errors"
    "flag"
    "fmt"
    "io"
    "log"
    "net/http"
-   "net/url"
    "os"
    "os/exec"
    "path/filepath"
@@ -16,64 +16,16 @@ import (
    "time"
 )
 
-func (c *client) do_country_code() error {
-   data, err := read_file(c.cache)
-   if err != nil {
-      return err
-   }
-   servers, err := nordVpn.ReadServers(data)
-   if err != nil {
-      return err
-   }
-   username, err := output("credential", "-h=api.nordvpn.com", "-k=username")
-   if err != nil {
-      return err
-   }
-   password, err := output("credential", "-h=api.nordvpn.com", "-k=password")
-   if err != nil {
-      return err
-   }
-   for _, server := range servers {
-      if server.ProxySsl() {
-         if server.Country(c.country_code) {
-            fmt.Println(
-               nordVpn.FormatProxy(username, password, server.Hostname),
-            )
-         }
-      }
-   }
-   return nil
-}
+type transport [1]http.Transport
 
-const duration = 24 * time.Hour
-
-func read_file(name string) ([]byte, error) {
-   file, err := os.Open(name)
-   if err != nil {
-      return nil, err
-   }
-   defer file.Close()
-   info, err := file.Stat()
-   if err != nil {
-      return nil, err
-   }
-   if time.Since(info.ModTime()) >= duration {
-      return nil, errors.New(duration.String())
-   }
-   return io.ReadAll(file)
+func (t *transport) RoundTrip(req *http.Request) (*http.Response, error) {
+   log.Println(req.Method, req.URL)
+   return t[0].RoundTrip(req)
 }
 
 func main() {
    log.SetFlags(log.Ltime)
-   http.DefaultTransport = &http.Transport{
-      Proxy: func(req *http.Request) (*url.URL, error) {
-         if req.Method == "" {
-            req.Method = "GET"
-         }
-         log.Println(req.Method, req.URL)
-         return nil, nil
-      },
-   }
+   http.DefaultTransport = &transport{}
    err := new(client).do()
    if err != nil {
       log.Fatal(err)
@@ -133,4 +85,57 @@ func output(name string, arg ...string) (string, error) {
       return "", err
    }
    return data.String(), nil
+}
+func (c *client) do_country_code() error {
+   data, err := read_file(c.cache)
+   if err != nil {
+      return err
+   }
+   servers, err := nordVpn.ReadServers(data)
+   if err != nil {
+      return err
+   }
+   data, err = exec.Command("credential", "-j=api.nordvpn.com").Output()
+   if err != nil {
+      return err
+   }
+   var credential []struct {
+      Username string
+      Password string
+   }
+   err = json.Unmarshal(data, &credential)
+   if err != nil {
+      return err
+   }
+   for _, server := range servers {
+      if server.ProxySsl() {
+         if server.Country(c.country_code) {
+            fmt.Println(
+               nordVpn.FormatProxy(
+                  credential[0].Username, credential[0].Password,
+                  server.Hostname,
+               ),
+            )
+         }
+      }
+   }
+   return nil
+}
+
+const duration = 24 * time.Hour
+
+func read_file(name string) ([]byte, error) {
+   file, err := os.Open(name)
+   if err != nil {
+      return nil, err
+   }
+   defer file.Close()
+   info, err := file.Stat()
+   if err != nil {
+      return nil, err
+   }
+   if time.Since(info.ModTime()) >= duration {
+      return nil, errors.New(duration.String())
+   }
+   return io.ReadAll(file)
 }
