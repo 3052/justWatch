@@ -16,6 +16,40 @@ import (
    "time"
 )
 
+// ExtractTotalCount looks for the popularTitles query containing the tomatoMeter filter
+func ExtractTotalCount(jsonData []byte) (float64, error) {
+   // Unmarshal into a generic map
+   var data map[string]interface{}
+   if err := json.Unmarshal(jsonData, &data); err != nil {
+      return 0, fmt.Errorf("failed to parse JSON: %v", err)
+   }
+
+   // Drill down into the "defaultClient" object
+   defaultClient, ok := data["defaultClient"].(map[string]interface{})
+   if !ok {
+      return 0, fmt.Errorf("defaultClient key missing or invalid format")
+   }
+
+   // Iterate through the keys inside defaultClient
+   for key, value := range defaultClient {
+      // Target the popularTitles query that specifically contains the tomatoMeter filter we applied in the URL
+      if strings.HasPrefix(key, "$ROOT_QUERY.popularTitles") && strings.Contains(key, "tomatoMeter") {
+
+         // Type assert the value to a nested map
+         if obj, isMap := value.(map[string]interface{}); isMap {
+            // Check if "totalCount" exists inside this object
+            if tc, exists := obj["totalCount"]; exists {
+               // encoding/json parses JSON numbers as float64 by default
+               if totalCount, isFloat := tc.(float64); isFloat {
+                  return totalCount, nil
+               }
+            }
+         }
+      }
+   }
+   return 0, fmt.Errorf("totalCount not found in JSON")
+}
+
 func main() {
    // 1. Define and parse the command-line flags
    inputFile := flag.String("input", "", "Path to the JSON file containing URLs (required)")
@@ -53,7 +87,7 @@ func main() {
          log.Printf("[%d/%d] Skipping invalid URL %s: %v\n", i+1, len(urls), rawTargetURL, err)
          continue
       }
-      
+
       q := u.Query()
       q.Set("tomatoMeter", "80")
       u.RawQuery = q.Encode()
@@ -88,6 +122,7 @@ func main() {
       fmt.Printf("| %.0f | %s | %s |\n", r.TotalCount, r.Country, r.Provider)
    }
 }
+
 // Result holds the final data we want to output
 type Result struct {
    Country    string
@@ -165,38 +200,4 @@ func ExtractApolloState(html []byte) ([]byte, error) {
       return nil, errors.New("closing script tag not found")
    }
    return state, nil
-}
-
-// ExtractTotalCount looks for the popularTitles query containing the HD presentationTypes filter
-func ExtractTotalCount(jsonData []byte) (float64, error) {
-   // Unmarshal into a generic map
-   var data map[string]interface{}
-   if err := json.Unmarshal(jsonData, &data); err != nil {
-      return 0, fmt.Errorf("failed to parse JSON: %v", err)
-   }
-   
-   // Drill down into the "defaultClient" object
-   defaultClient, ok := data["defaultClient"].(map[string]interface{})
-   if !ok {
-      return 0, fmt.Errorf("defaultClient key missing or invalid format")
-   }
-
-   // Iterate through the keys inside defaultClient
-   for key, value := range defaultClient {
-      // Target the popularTitles query that specifically contains the presentationTypes filter for HD
-      if strings.HasPrefix(key, "$ROOT_QUERY.popularTitles") {
-         
-         // Type assert the value to a nested map
-         if obj, isMap := value.(map[string]interface{}); isMap {
-            // Check if "totalCount" exists inside this object
-            if tc, exists := obj["totalCount"]; exists {
-               // encoding/json parses JSON numbers as float64 by default
-               if totalCount, isFloat := tc.(float64); isFloat {
-                  return totalCount, nil
-               }
-            }
-         }
-      }
-   }
-   return 0, fmt.Errorf("totalCount not found in JSON")
 }
