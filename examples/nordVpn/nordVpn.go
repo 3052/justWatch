@@ -12,7 +12,6 @@ import (
    "os"
    "os/exec"
    "path/filepath"
-   "strings"
    "time"
 )
 
@@ -75,17 +74,6 @@ type client struct {
    country_code string
 }
 
-func output(name string, arg ...string) (string, error) {
-   var data strings.Builder
-   command := exec.Command(name, arg...)
-   command.Stdout = &data
-   log.Println("Run", command.Args)
-   err := command.Run()
-   if err != nil {
-      return "", err
-   }
-   return data.String(), nil
-}
 func (c *client) do_country_code() error {
    data, err := read_file(c.cache)
    if err != nil {

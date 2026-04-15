@@ -88,9 +88,9 @@ func main() {
          continue
       }
 
-      q := u.Query()
-      q.Set("tomatoMeter", "80")
-      u.RawQuery = q.Encode()
+      query := u.Query()
+      query.Set("tomatoMeter", "80")
+      u.RawQuery = query.Encode()
       targetURL := u.String()
 
       fmt.Printf("[%d/%d] Fetching %s...\n", i+1, len(urls), targetURL)
@@ -115,11 +115,23 @@ func main() {
       return results[i].TotalCount > results[j].TotalCount
    })
 
-   // 5. Output as a Markdown table
-   fmt.Println("| Titles | Country | Provider |")
+   // 5. Output as a Markdown table with Reference Links
+   fmt.Println("\n| Titles | Country | Provider |")
    fmt.Println("|---|---|---|")
    for _, r := range results {
-      fmt.Printf("| %.0f | %s | %s |\n", r.TotalCount, r.Country, r.Provider)
+      // Format the Provider column as a Markdown reference link: [provider]
+      fmt.Printf("| %.0f | %s | [%s] |\n", r.TotalCount, r.Country, r.Provider)
+   }
+
+   fmt.Println() // Empty line between the table and the references
+
+   // Deduplicate and output markdown reference URLs
+   printedRefs := make(map[string]bool)
+   for _, r := range results {
+      if !printedRefs[r.Provider] {
+         fmt.Printf("[%s]:%s\n", r.Provider, r.URL)
+         printedRefs[r.Provider] = true
+      }
    }
 }
 
@@ -128,11 +140,15 @@ type Result struct {
    Country    string
    Provider   string
    TotalCount float64
+   URL        string
 }
 
 // processURL handles the fetching and parsing for a single URL
 func processURL(client *http.Client, rawURL string) (Result, error) {
    var result Result
+   
+   // Save the URL to our Result struct
+   result.URL = rawURL
 
    // Parse the URL to extract Country and Provider
    parsedURL, err := url.Parse(rawURL)
@@ -173,11 +189,6 @@ func processURL(client *http.Client, rawURL string) (Result, error) {
       return result, err
    }
 
-   // Clean up potential trailing semicolon (e.g. `window.__APOLLO_STATE__={};`)
-   // so the standard json.Unmarshal doesn't throw a syntax error.
-   stateJSON = bytes.TrimSpace(stateJSON)
-   stateJSON = bytes.TrimSuffix(stateJSON, []byte(";"))
-
    // Feed state into ExtractTotalCount
    count, err := ExtractTotalCount(stateJSON)
    if err != nil {
@@ -187,8 +198,6 @@ func processURL(client *http.Client, rawURL string) (Result, error) {
    result.TotalCount = count
    return result, nil
 }
-
-// --- Functions Provided By You Below ---
 
 func ExtractApolloState(html []byte) ([]byte, error) {
    _, after, found := bytes.Cut(html, []byte("window.__APOLLO_STATE__="))
