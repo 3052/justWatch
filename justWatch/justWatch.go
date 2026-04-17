@@ -17,6 +17,127 @@ import (
    "strings"
 )
 
+func (h *HrefLangTag) Offers(localeVar *Locale) ([]Offer, error) {
+   data, err := json.Marshal(map[string]any{
+      "query": get_url_title_details,
+      "variables": map[string]string{
+         "country":  localeVar.Country,
+         "fullPath": h.Href,
+      },
+   })
+   if err != nil {
+      return nil, err
+   }
+   resp, err := http.Post(
+      "https://apis.justwatch.com/graphql", "application/json",
+      bytes.NewReader(data),
+   )
+   if err != nil {
+      return nil, err
+   }
+   if resp.StatusCode != http.StatusOK {
+      var data strings.Builder
+      err = resp.Write(&data)
+      if err != nil {
+         return nil, err
+      }
+      return nil, errors.New(data.String())
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Data struct {
+         Url struct {
+            Node struct {
+               Offers []Offer
+            }
+         }
+      }
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return result.Data.Url.Node.Offers, nil
+}
+
+type HrefLangTag struct {
+   Href   string // /ar/pelicula/mulholland-drive
+   Locale string // es_AR
+}
+
+type Locale struct {
+   FullLocale  string
+   Country     string
+   CountryName string
+}
+
+func (l Locales) Locale(tag *HrefLangTag) (*Locale, bool) {
+   for _, locale_data := range l {
+      if locale_data.FullLocale == tag.Locale {
+         return &locale_data, true
+      }
+   }
+   return nil, false
+}
+
+type Locales []Locale
+
+func FetchLocales(language string) (Locales, error) {
+   data, err := json.Marshal(map[string]any{
+      "query": backend_constants_fetcher_query,
+      "variables": map[string]string{
+         "language": language,
+      },
+   })
+   if err != nil {
+      return nil, err
+   }
+   req, err := http.NewRequest(
+      "POST", "https://apis.justwatch.com/graphql", bytes.NewReader(data),
+   )
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("content-type", "application/json")
+   req.Header.Set(
+      "device-id", base64.RawStdEncoding.EncodeToString(make([]byte, 16)),
+   )
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   if resp.StatusCode != http.StatusOK {
+      var data strings.Builder
+      err = resp.Write(&data)
+      if err != nil {
+         return nil, err
+      }
+      return nil, errors.New(data.String())
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Data struct {
+         Locales Locales
+      }
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return result.Data.Locales, nil
+}
+
+type Offer struct {
+   ElementCount     int
+   MonetizationType string
+   StandardWebUrl   string
+}
+
+///
+
+type Content struct {
+   HrefLangTags []HrefLangTag `json:"href_lang_tags"`
+}
 //go:embed GetUrlTitleDetails.gql
 var get_url_title_details string
 
@@ -299,126 +420,4 @@ func Deduplicate(offers []*EnrichedOffer) []*EnrichedOffer {
 type EnrichedOffer struct {
    Locale *Locale
    Offer  *Offer
-}
-
-func (h *HrefLangTag) Offers(localeVar *Locale) ([]Offer, error) {
-   data, err := json.Marshal(map[string]any{
-      "query": get_url_title_details,
-      "variables": map[string]string{
-         "country":  localeVar.Country,
-         "fullPath": h.Href,
-      },
-   })
-   if err != nil {
-      return nil, err
-   }
-   resp, err := http.Post(
-      "https://apis.justwatch.com/graphql", "application/json",
-      bytes.NewReader(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-   if resp.StatusCode != http.StatusOK {
-      var data strings.Builder
-      err = resp.Write(&data)
-      if err != nil {
-         return nil, err
-      }
-      return nil, errors.New(data.String())
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Data struct {
-         Url struct {
-            Node struct {
-               Offers []Offer
-            }
-         }
-      }
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return result.Data.Url.Node.Offers, nil
-}
-
-type HrefLangTag struct {
-   Href   string // /ar/pelicula/mulholland-drive
-   Locale string // es_AR
-}
-
-type Locale struct {
-   FullLocale  string
-   Country     string
-   CountryName string
-}
-
-func (l Locales) Locale(tag *HrefLangTag) (*Locale, bool) {
-   for _, locale_data := range l {
-      if locale_data.FullLocale == tag.Locale {
-         return &locale_data, true
-      }
-   }
-   return nil, false
-}
-
-type Locales []Locale
-
-func FetchLocales(language string) (Locales, error) {
-   data, err := json.Marshal(map[string]any{
-      "query": backend_constants_fetcher_query,
-      "variables": map[string]string{
-         "language": language,
-      },
-   })
-   if err != nil {
-      return nil, err
-   }
-   req, err := http.NewRequest(
-      "POST", "https://apis.justwatch.com/graphql", bytes.NewReader(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("content-type", "application/json")
-   req.Header.Set(
-      "device-id", base64.RawStdEncoding.EncodeToString(make([]byte, 16)),
-   )
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   if resp.StatusCode != http.StatusOK {
-      var data strings.Builder
-      err = resp.Write(&data)
-      if err != nil {
-         return nil, err
-      }
-      return nil, errors.New(data.String())
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Data struct {
-         Locales Locales
-      }
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return result.Data.Locales, nil
-}
-
-type Offer struct {
-   ElementCount     int
-   MonetizationType string
-   StandardWebUrl   string
-}
-
-///
-
-type Content struct {
-   HrefLangTags []HrefLangTag `json:"href_lang_tags"`
 }
