@@ -138,6 +138,7 @@ type Offer struct {
 type Content struct {
    HrefLangTags []HrefLangTag `json:"href_lang_tags"`
 }
+
 //go:embed GetUrlTitleDetails.gql
 var get_url_title_details string
 

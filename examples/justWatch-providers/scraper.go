@@ -111,7 +111,7 @@ type Result struct {
 // processURL handles the fetching and parsing for a single URL
 func processURL(client *http.Client, rawURL string) (Result, error) {
    var result Result
-   
+
    // Save the URL to our Result struct
    result.URL = rawURL
 
@@ -175,6 +175,7 @@ func ExtractApolloState(html []byte) ([]byte, error) {
    }
    return state, nil
 }
+
 // ExtractTotalCount looks for the popularTitles query containing the tomatoMeter filter
 func ExtractTotalCount(jsonData []byte) (float64, error) {
    // Unmarshal into a generic map
