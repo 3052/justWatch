@@ -17,6 +17,10 @@ import (
    "strings"
 )
 
+type Content struct {
+   HrefLangTags []HrefLangTag `json:"href_lang_tags"`
+}
+
 func (h *HrefLangTag) Offers(localeVar *Locale) ([]Offer, error) {
    data, err := json.Marshal(map[string]any{
       "query": get_url_title_details,
@@ -134,10 +138,6 @@ type Offer struct {
 }
 
 ///
-
-type Content struct {
-   HrefLangTags []HrefLangTag `json:"href_lang_tags"`
-}
 
 //go:embed GetUrlTitleDetails.gql
 var get_url_title_details string
