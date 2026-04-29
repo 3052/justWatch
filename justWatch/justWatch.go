@@ -21,6 +21,47 @@ type Content struct {
    HrefLangTags []HrefLangTag `json:"href_lang_tags"`
 }
 
+// FilterOffers removes offers with unwanted monetization types.
+func FilterOffers(offers []*EnrichedOffer, unwantedTypes ...string) []*EnrichedOffer {
+   unwantedSet := make(map[string]struct{}, len(unwantedTypes))
+   for _, unwanted := range unwantedTypes {
+      unwantedSet[unwanted] = struct{}{}
+   }
+   var filteredOffers []*EnrichedOffer
+   for _, offer := range offers {
+      if _, found := unwantedSet[offer.Offer.MonetizationType]; !found {
+         filteredOffers = append(filteredOffers, offer)
+      }
+   }
+   return filteredOffers
+}
+
+// Deduplicate removes true duplicates where both the Offer and Locale are identical.
+func Deduplicate(offers []*EnrichedOffer) []*EnrichedOffer {
+   // 1. Sort the slice. This brings identical EnrichedOffers next to each other.
+   // This part is correct as it compares the underlying values.
+   slices.SortFunc(offers, func(a, b *EnrichedOffer) int {
+      return cmp.Or(
+         cmp.Compare(a.Offer.StandardWebUrl, b.Offer.StandardWebUrl),
+         cmp.Compare(a.Offer.MonetizationType, b.Offer.MonetizationType),
+         a.Offer.ElementCount-b.Offer.ElementCount,
+         cmp.Compare(a.Locale.FullLocale, b.Locale.FullLocale),
+      )
+   })
+   // 2. Compact the sorted slice, removing consecutive duplicates.
+   return slices.CompactFunc(offers, func(a, b *EnrichedOffer) bool {
+      return a.Offer.StandardWebUrl == b.Offer.StandardWebUrl &&
+         a.Offer.MonetizationType == b.Offer.MonetizationType &&
+         a.Offer.ElementCount == b.Offer.ElementCount &&
+         a.Locale.FullLocale == b.Locale.FullLocale
+   })
+}
+
+type EnrichedOffer struct {
+   Locale *Locale
+   Offer  *Offer
+}
+
 func (h *HrefLangTag) Offers(localeVar *Locale) ([]Offer, error) {
    data, err := json.Marshal(map[string]any{
       "query": get_url_title_details,
@@ -380,45 +421,4 @@ func (c *Content) Fetch(path string) error {
       return errors.New(resp.Status)
    }
    return json.NewDecoder(resp.Body).Decode(c)
-}
-
-// FilterOffers removes offers with unwanted monetization types.
-func FilterOffers(offers []*EnrichedOffer, unwantedTypes ...string) []*EnrichedOffer {
-   unwantedSet := make(map[string]struct{}, len(unwantedTypes))
-   for _, unwanted := range unwantedTypes {
-      unwantedSet[unwanted] = struct{}{}
-   }
-   var filteredOffers []*EnrichedOffer
-   for _, offer := range offers {
-      if _, found := unwantedSet[offer.Offer.MonetizationType]; !found {
-         filteredOffers = append(filteredOffers, offer)
-      }
-   }
-   return filteredOffers
-}
-
-// Deduplicate removes true duplicates where both the Offer and Locale are identical.
-func Deduplicate(offers []*EnrichedOffer) []*EnrichedOffer {
-   // 1. Sort the slice. This brings identical EnrichedOffers next to each other.
-   // This part is correct as it compares the underlying values.
-   slices.SortFunc(offers, func(a, b *EnrichedOffer) int {
-      return cmp.Or(
-         cmp.Compare(a.Offer.StandardWebUrl, b.Offer.StandardWebUrl),
-         cmp.Compare(a.Offer.MonetizationType, b.Offer.MonetizationType),
-         a.Offer.ElementCount-b.Offer.ElementCount,
-         cmp.Compare(a.Locale.FullLocale, b.Locale.FullLocale),
-      )
-   })
-   // 2. Compact the sorted slice, removing consecutive duplicates.
-   return slices.CompactFunc(offers, func(a, b *EnrichedOffer) bool {
-      return a.Offer.StandardWebUrl == b.Offer.StandardWebUrl &&
-         a.Offer.MonetizationType == b.Offer.MonetizationType &&
-         a.Offer.ElementCount == b.Offer.ElementCount &&
-         a.Locale.FullLocale == b.Locale.FullLocale
-   })
-}
-
-type EnrichedOffer struct {
-   Locale *Locale
-   Offer  *Offer
 }
