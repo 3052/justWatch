@@ -17,6 +17,27 @@ import (
    "strings"
 )
 
+func (c *Content) Fetch(path string) error {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme:   "https",
+         Host:     "apis.justwatch.com",
+         Path:     "/content/urls",
+         RawQuery: url.Values{"path": {path}}.Encode(),
+      },
+      Header: http.Header{},
+   }
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return errors.New(resp.Status)
+   }
+   return json.NewDecoder(resp.Body).Decode(c)
+}
+
 type Content struct {
    HrefLangTags []HrefLangTag `json:"href_lang_tags"`
 }
@@ -400,25 +421,4 @@ func GroupAndSortByUrl(offers []*EnrichedOffer) ([]string, map[string][]*Enriche
       return cmp.Compare(len(a), len(b))
    })
    return keys, groupedOffers
-}
-
-func (c *Content) Fetch(path string) error {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme:   "https",
-         Host:     "apis.justwatch.com",
-         Path:     "/content/urls",
-         RawQuery: url.Values{"path": {path}}.Encode(),
-      },
-      Header: http.Header{},
-   }
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return errors.New(resp.Status)
-   }
-   return json.NewDecoder(resp.Body).Decode(c)
 }
