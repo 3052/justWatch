@@ -8,23 +8,14 @@ import (
    "fmt"
    "io"
    "log"
-   "net/http"
    "os"
    "os/exec"
    "path/filepath"
    "time"
 )
 
-type transport [1]http.Transport
-
-func (t *transport) RoundTrip(req *http.Request) (*http.Response, error) {
-   log.Println(req.Method, req.URL)
-   return t[0].RoundTrip(req)
-}
-
 func main() {
    log.SetFlags(log.Ltime)
-   http.DefaultTransport = &transport{}
    err := new(client).do()
    if err != nil {
       log.Fatal(err)

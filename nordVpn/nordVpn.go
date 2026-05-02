@@ -3,6 +3,7 @@ package nordVpn
 import (
    "encoding/json"
    "io"
+   "log"
    "net/http"
    "net/url"
    "strconv"
@@ -12,23 +13,39 @@ import (
 // limit <= -1 for default
 // limit == 0 for all
 func WriteServers(limit int) ([]byte, error) {
-   req := http.Request{
-      URL: &url.URL{
+   var query string
+   if limit >= 0 {
+      query = "limit=" + strconv.Itoa(limit)
+   }
+   resp, err := Get(
+      &url.URL{
          Scheme: "https",
          Host:   "api.nordvpn.com",
          Path:   "/v1/servers",
+         RawQuery: query,
       },
-      Header: http.Header{},
-   }
-   if limit >= 0 {
-      req.URL.RawQuery = "limit=" + strconv.Itoa(limit)
-   }
-   resp, err := http.DefaultClient.Do(&req)
+      nil,
+   )
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
    return io.ReadAll(resp.Body)
+}
+
+func Get(targetUrl *url.URL, headers map[string]string) (*http.Response, error) {
+   reqHeader := make(http.Header)
+   for key, value := range headers {
+      reqHeader.Set(key, value)
+   }
+   req := &http.Request{
+      Method: http.MethodGet,
+      URL:    targetUrl,
+      Header: reqHeader,
+   }
+
+   log.Println(req.Method, req.URL)
+   return http.DefaultClient.Do(req)
 }
 
 func FormatProxy(username, password, hostname string) string {
