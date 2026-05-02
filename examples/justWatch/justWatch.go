@@ -1,7 +1,7 @@
 package main
 
 import (
-   "41.neocities.org/verde/justWatch"
+   "41.neocities.org/justWatch"
    "bytes"
    "errors"
    "flag"
