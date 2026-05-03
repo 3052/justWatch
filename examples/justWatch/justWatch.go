@@ -7,27 +7,13 @@ import (
    "flag"
    "fmt"
    "log"
-   "net/http"
    "os"
    "path"
    "strings"
    "time"
 )
 
-func (t *transport) RoundTrip(req *http.Request) (*http.Response, error) {
-   if req.Method == "" {
-      req.Method = "GET"
-   }
-   if req.URL.Path != "/graphql" {
-      log.Println(req.Method, req.URL)
-   }
-   return t[0].RoundTrip(req)
-}
-
-type transport [1]http.Transport
-
 func main() {
-   http.DefaultTransport = &transport{}
    log.SetFlags(log.Ltime)
    err := new(client).do()
    if err != nil {
