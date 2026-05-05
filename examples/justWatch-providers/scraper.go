@@ -16,6 +16,8 @@ import (
    "time"
 )
 
+const tomato_meter = 60
+
 func main() {
    // 1. Define and parse the command-line flags
    inputFile := flag.String("i", "", "Path to the JSON file containing URLs (required)")
@@ -54,7 +56,7 @@ func main() {
       }
 
       query := u.Query()
-      query.Set("tomatoMeter", "80")
+      query.Set("tomatoMeter", fmt.Sprint(tomato_meter))
       u.RawQuery = query.Encode()
       targetURL := u.String()
 
