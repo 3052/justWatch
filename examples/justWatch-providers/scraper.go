@@ -16,6 +16,7 @@ import (
    "time"
 )
 
+// rottentomatoes.com/about
 const tomato_meter = 60
 
 func main() {
