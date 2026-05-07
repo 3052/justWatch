@@ -4,9 +4,14 @@ https://justwatch.com
 
 ## android
 
-https://play.google.com/store/apps/details?id=com.justwatch.justwatch
+- https://apkmirror.com/apk/justwatch-gmbh/justwatch
+- https://play.google.com/store/apps/details?id=com.justwatch.justwatch
 
-Create Android 6 device. Install user certificate
+create Pixel 5, Android 11 (level 30). install system certificate
+
+~~~
+adb install-multiple (Get-ChildItem *.apk)
+~~~
 
 ## Discord
 
