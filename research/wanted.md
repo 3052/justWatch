@@ -28,6 +28,7 @@
 - https://justwatch.com/us/movie/verity
 - https://justwatch.com/us/movie/wild-horse-nine
 - https://justwatch.com/us/movie/wuthering-heights-2026
+- https://justwatch.com/us/tv-show/cape-fear
 - https://justwatch.com/us/tv-show/dtf-st-louis
 - https://justwatch.com/us/tv-show/his-and-hers
 - https://justwatch.com/us/tv-show/margos-got-money-troubles
@@ -183,6 +184,7 @@
 
 ## 2014
 
+- https://justwatch.com/us/movie/chef
 - https://justwatch.com/us/movie/ennemi
 - https://justwatch.com/us/tv-show/fargo
 - https://justwatch.com/us/tv-show/true-detective
