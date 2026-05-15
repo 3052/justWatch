@@ -87,6 +87,7 @@
 - https://justwatch.com/us/movie/eden-2024-0
 - https://justwatch.com/us/movie/immaculate-2024
 - https://justwatch.com/us/movie/love-lies-bleeding-2024
+- https://justwatch.com/us/movie/nosferatu-2023
 - https://justwatch.com/us/movie/parthenope-2024
 - https://justwatch.com/us/movie/pideme-lo-que-quieras
 - https://justwatch.com/us/movie/presence-2024
