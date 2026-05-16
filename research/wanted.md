@@ -189,6 +189,7 @@
 
 - https://justwatch.com/us/movie/chef
 - https://justwatch.com/us/movie/ennemi
+- https://justwatch.com/us/tv-show/bojack-horseman
 - https://justwatch.com/us/tv-show/fargo
 - https://justwatch.com/us/tv-show/true-detective
 
