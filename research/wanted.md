@@ -118,6 +118,7 @@
 - https://justwatch.com/us/movie/knives-out-2
 - https://justwatch.com/us/movie/tar-2022
 - https://justwatch.com/us/movie/the-northman
+- https://justwatch.com/us/movie/were-all-going-to-the-worlds-fair
 - https://justwatch.com/us/tv-show/1923
 - https://justwatch.com/us/tv-show/she-hulk
 - https://justwatch.com/us/tv-show/the-bear
