@@ -8,6 +8,7 @@
 - https://justwatch.com/us/movie/flowervale-street
 - https://justwatch.com/us/movie/good-luck-have-fun-dont-die
 - https://justwatch.com/us/movie/hokum-2026
+- https://justwatch.com/us/movie/hope-2026
 - https://justwatch.com/us/movie/huntington
 - https://justwatch.com/us/movie/in-the-grey
 - https://justwatch.com/us/movie/mike-and-nick-and-nick-and-alice
