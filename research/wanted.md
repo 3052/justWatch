@@ -7,6 +7,7 @@
 - https://justwatch.com/us/movie/crime-101
 - https://justwatch.com/us/movie/flowervale-street
 - https://justwatch.com/us/movie/good-luck-have-fun-dont-die
+- https://justwatch.com/us/movie/her-private-hell-2026
 - https://justwatch.com/us/movie/hokum-2026
 - https://justwatch.com/us/movie/hope-2026
 - https://justwatch.com/us/movie/huntington
