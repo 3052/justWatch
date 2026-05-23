@@ -307,6 +307,7 @@ https://justwatch.com/us/movie/perfect-blue
 ## 1993
 
 - https://justwatch.com/us/movie/jurassic-park-i
+- https://justwatch.com/us/movie/mad-dog-and-glory
 - https://justwatch.com/us/tv-show/frasier
 
 ## 1992
