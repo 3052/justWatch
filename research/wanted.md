@@ -146,6 +146,7 @@
 
 - https://justwatch.com/us/movie/bombshell-2019
 - https://justwatch.com/us/movie/cold-pursuit
+- https://justwatch.com/us/movie/greta
 - https://justwatch.com/us/movie/once-upon-a-time-in-hollywood
 - https://justwatch.com/us/movie/portrait-of-a-lady-on-fire
 - https://justwatch.com/us/tv-show/euphoria
