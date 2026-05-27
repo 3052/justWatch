@@ -270,6 +270,7 @@ https://justwatch.com/us/movie/signs
 
 ## 2000
 
+- https://justwatch.com/us/movie/erin-brockovich
 - https://justwatch.com/us/movie/unbreakable
 - https://justwatch.com/us/movie/x-men
 
