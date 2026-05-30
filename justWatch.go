@@ -188,6 +188,39 @@ var EnUs = Locales{
    {FullLocale: "ar_YE", Country: "YE", CountryName: "Yemen"},
 }
 
+func getUrlGroupingKey(rawUrl string) string {
+   trimmedUrl := strings.TrimSuffix(rawUrl, "\n")
+   parsed, err := url.Parse(trimmedUrl)
+   if err != nil {
+      return trimmedUrl
+   }
+   if parsed.RawQuery == "" {
+      return parsed.String()
+   }
+   query := parsed.Query()
+   for _, rule := range params_to_delete {
+      // .Get() returns the first value. If the key doesn't exist, it returns "".
+      // This perfectly handles the "assume one value" rule.
+      if query.Get(rule.key) == rule.value {
+         delete(query, rule.key)
+      }
+   }
+   parsed.RawQuery = query.Encode()
+   return parsed.String()
+}
+
+// https://justwatch.com/us/movie/goodfellas
+func GetPath(rawUrl string) (string, error) {
+   url_parse, err := url.Parse(rawUrl)
+   if err != nil {
+      return "", err
+   }
+   if url_parse.Scheme == "" {
+      return "", errors.New("invalid URL: scheme is missing")
+   }
+   return url_parse.Path, nil
+}
+
 func (c *Content) Fetch(path string) error {
    req := http.Request{
       URL: &url.URL{
@@ -371,39 +404,6 @@ type Offer struct {
 }
 
 ///
-
-func getUrlGroupingKey(rawUrl string) string {
-   trimmedUrl := strings.TrimSuffix(rawUrl, "\n")
-   parsed, err := url.Parse(trimmedUrl)
-   if err != nil {
-      return trimmedUrl
-   }
-   if parsed.RawQuery == "" {
-      return parsed.String()
-   }
-   query := parsed.Query()
-   for _, rule := range params_to_delete {
-      // .Get() returns the first value. If the key doesn't exist, it returns "".
-      // This perfectly handles the "assume one value" rule.
-      if query.Get(rule.key) == rule.value {
-         delete(query, rule.key)
-      }
-   }
-   parsed.RawQuery = query.Encode()
-   return parsed.String()
-}
-
-// https://justwatch.com/us/movie/goodfellas
-func GetPath(rawUrl string) (string, error) {
-   url_parse, err := url.Parse(rawUrl)
-   if err != nil {
-      return "", err
-   }
-   if url_parse.Scheme == "" {
-      return "", errors.New("invalid URL: scheme is missing")
-   }
-   return url_parse.Path, nil
-}
 
 func GroupAndSortByUrl(offers []*EnrichedOffer) ([]string, map[string][]*EnrichedOffer) {
    groupedOffers := make(map[string][]*EnrichedOffer)
