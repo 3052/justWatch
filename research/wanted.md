@@ -208,6 +208,7 @@
 
 ## 2012
 
+- https://justwatch.com/us/movie/end-of-watch
 - https://justwatch.com/us/tv-show/magic-city
 - https://justwatch.com/us/tv-show/the-client-list
 - https://justwatch.com/us/tv-show/the-newsroom
