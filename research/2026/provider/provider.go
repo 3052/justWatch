@@ -10,7 +10,7 @@ import (
    "net/http"
 )
 
-// ResponseData models the structure we need to extract totalCount
+// ResponseData models the stripped-down structure we need
 type ResponseData struct {
    Data struct {
       PopularTitles struct {
@@ -22,13 +22,13 @@ type ResponseData struct {
 func main() {
    // 1. Define command line flags
    pkg := flag.String("package", "cpd", "JustWatch package code (e.g., cpd, nfx, hbm)")
-   lang := flag.String("language", "cs", "Language code (e.g., cs, en)")
    country := flag.String("country", "CZ", "Country code (e.g., CZ, US)")
    flag.Parse()
 
-   // 2. Construct the GraphQL Variables
+   // 2. Construct the minimized GraphQL Variables
    variables := map[string]interface{}{
-      "first":               40,
+      "country":             *country,
+      "first":               1, // Minimized since we don't need the actual items
       "popularTitlesSortBy": "POPULAR",
       "sortRandomSeed":      0,
       "offset":              0,
@@ -47,12 +47,6 @@ func main() {
          "monetizationTypes":          []string{},
          "searchQuery":                "",
       },
-      "watchNowFilter": map[string]interface{}{
-         "packages":          []string{*pkg},
-         "monetizationTypes": []string{},
-      },
-      "language": *lang,
-      "country":  *country,
    }
 
    // 3. Construct the full request payload
@@ -73,10 +67,10 @@ func main() {
       log.Fatalf("Error creating request: %v", err)
    }
 
-   // Adding headers mirroring the original request to avoid getting blocked
+   // Adding standard headers mirroring the original request to avoid getting blocked
    req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0")
    req.Header.Set("Accept", "application/graphql-response+json,application/json;q=0.9")
-   req.Header.Set("Accept-Language", "en-US,en;q=0.5")
+   req.Header.Set("Accept-Language", "en-US,en;q=0.9")
    req.Header.Set("Content-Type", "application/json")
    req.Header.Set("Origin", "https://www.justwatch.com")
    req.Header.Set("Referer", "https://www.justwatch.com/")
@@ -107,8 +101,16 @@ func main() {
    fmt.Printf("Total Count: %d\n", responseData.Data.PopularTitles.TotalCount)
 }
 
-// Constant holding the large GraphQL query string
-const graphqlQuery = `query GetPopularTitles($country: Country!, $first: Int! = 70, $format: ImageFormat, $language: Language!, $after: String, $popularTitlesFilter: TitleFilter, $popularTitlesSortBy: PopularTitlesSorting! = POPULAR, $profile: PosterProfile, $sortRandomSeed: Int! = 0, $watchNowFilter: WatchNowOfferFilter!, $offset: Int = 0) {
+// The minimized GraphQL query with the signature cleanly reformatted
+const graphqlQuery = `query GetPopularTitles(
+  $country: Country!
+  $popularTitlesFilter: TitleFilter
+  $popularTitlesSortBy: PopularTitlesSorting! = POPULAR
+  $first: Int! = 40
+  $sortRandomSeed: Int! = 0
+  $offset: Int = 0
+  $after: String
+) {
   popularTitles(
     country: $country
     filter: $popularTitlesFilter
@@ -118,134 +120,6 @@ const graphqlQuery = `query GetPopularTitles($country: Country!, $first: Int! = 
     offset: $offset
     after: $after
   ) {
-    __typename
-    edges {
-      cursor
-      node {
-        ...PopularTitleGraphql
-        __typename
-      }
-      __typename
-    }
-    pageInfo {
-      startCursor
-      endCursor
-      hasPreviousPage
-      hasNextPage
-      __typename
-    }
     totalCount
   }
-}
-
-
-fragment PopularTitleGraphql on MovieOrShow {
-  __typename
-  id
-  objectId
-  objectType
-  content(country: $country, language: $language) {
-    title
-    fullPath
-    originalReleaseYear
-    shortDescription
-    interactions {
-      likelistAdditions
-      dislikelistAdditions
-      __typename
-    }
-    scoring {
-      imdbVotes
-      imdbScore
-      tmdbPopularity
-      tmdbScore
-      tomatoMeter
-      certifiedFresh
-      jwRating
-      __typename
-    }
-    interactions {
-      votesNumber
-      __typename
-    }
-    posterUrl(profile: $profile, format: $format)
-    isReleased
-    runtime
-    __typename
-  }
-  likelistEntry {
-    createdAt
-    __typename
-  }
-  dislikelistEntry {
-    createdAt
-    __typename
-  }
-  watchlistEntryV2 {
-    createdAt
-    __typename
-  }
-  customlistEntries {
-    createdAt
-    __typename
-  }
-  freeOffersCount: offerCount(
-    country: $country
-    platform: WEB
-    filter: {monetizationTypes: [FREE, ADS]}
-  )
-  watchNowOffer(country: $country, platform: WEB, filter: $watchNowFilter) {
-    ...WatchNowOffer
-    __typename
-  }
-  ... on Movie {
-    seenlistEntry {
-      createdAt
-      __typename
-    }
-    __typename
-  }
-  ... on Show {
-    tvShowTrackingEntry {
-      createdAt
-      __typename
-    }
-    seenState(country: $country) {
-      seenEpisodeCount
-      progress
-      __typename
-    }
-    __typename
-  }
-}
-
-
-fragment WatchNowOffer on Offer {
-  __typename
-  id
-  standardWebURL
-  preAffiliatedStandardWebURL
-  streamUrl
-  streamUrlExternalPlayer
-  package {
-    id
-    icon
-    packageId
-    clearName
-    shortName
-    technicalName
-    iconWide(profile: S160)
-    hasRectangularIcon(country: $country, platform: WEB)
-    __typename
-  }
-  retailPrice(language: $language)
-  retailPriceValue
-  lastChangeRetailPriceValue
-  currency
-  presentationType
-  monetizationType
-  availableTo
-  dateCreated
-  newElementCount
-  mediaDealId
 }`
