@@ -10,10 +10,11 @@ import (
    "log"
    "net/http"
    "os"
+   "strings"
 )
 
 //go:embed GetPopularTitles.graphql
-var get_popular_titles string
+var graphqlQuery string
 
 // InputRequest models the expected structure of the input JSON file
 type InputRequest struct {
@@ -21,9 +22,13 @@ type InputRequest struct {
    Country string `json:"country"`
 }
 
-// ResponseData models the structure to get totalCount and the provider name
+// ResponseData models the structure to handle both successes and GraphQL errors
 type ResponseData struct {
-   Data struct {
+   Errors []struct {
+      Message string `json:"message"`
+   } `json:"errors"`
+   // Data is a pointer so it can safely unmarshal a JSON null
+   Data *struct {
       PopularTitles struct {
          TotalCount int `json:"totalCount"`
          Edges      []struct {
@@ -40,12 +45,24 @@ type ResponseData struct {
 }
 
 func main() {
-   fileFlag := flag.String("file", "inputs.json", "Path to JSON file containing package/country array")
+   fileFlag := flag.String("file", "", "Path to JSON file containing package/country array (required)")
    flag.Parse()
 
+   // 1. Validate that the flag was actually provided
+   if *fileFlag == "" {
+      flag.Usage()
+      log.Fatal("Error: the -file flag is required.")
+   }
+
+   // 2. Validate that the file actually exists before trying to read it
+   if _, err := os.Stat(*fileFlag); os.IsNotExist(err) {
+      log.Fatalf("Error: the file '%s' does not exist.", *fileFlag)
+   }
+
+   // 3. Safely read the file
    fileBytes, err := os.ReadFile(*fileFlag)
    if err != nil {
-      log.Fatalf("Failed to read file %s: %v", *fileFlag, err)
+      log.Fatalf("Failed to read file '%s': %v", *fileFlag, err)
    }
 
    var requests []InputRequest
@@ -61,7 +78,7 @@ func main() {
 
       totalCount, providerName, err := fetchProviderData(req.Package, req.Country)
       if err != nil {
-         log.Printf("[%s - %s] Error: %v\n", req.Package, req.Country, err)
+         log.Printf("[%s - %s] Failed: %v\n", req.Package, req.Country, err)
          continue
       }
 
@@ -70,36 +87,61 @@ func main() {
 }
 
 func fetchProviderData(pkg, country string) (int, string, error) {
-   variables := map[string]any{
-      "country": country,
-      "first":   1, // Only need 1 item to grab the provider name
-      "popularTitlesFilter": map[string]any{
-         "packages": []string{pkg},
+   variables := map[string]interface{}{
+      "country":             country,
+      "first":               1, // Only need 1 item to grab the provider name
+      "popularTitlesSortBy": "POPULAR",
+      "sortRandomSeed":      0,
+      "offset":              0,
+      "after":               "",
+      "popularTitlesFilter": map[string]interface{}{
+         "ageCertifications":          []string{},
+         "excludeGenres":              []string{},
+         "excludeProductionCountries": []string{},
+         "objectTypes":                []string{},
+         "productionCountries":        []string{},
+         "subgenres":                  []string{},
+         "genres":                     []string{},
+         "packages":                   []string{pkg},
+         "excludeIrrelevantTitles":    false,
+         "presentationTypes":          []string{},
+         "monetizationTypes":          []string{},
+         "searchQuery":                "",
          "tomatoMeter": map[string]int{
             "min": 60,
          },
       },
-      "popularTitlesSortBy": "POPULAR",
-      "sortRandomSeed":      0,
-      "watchNowFilter": map[string]any{
-         "packages": []string{pkg},
+      "watchNowFilter": map[string]interface{}{
+         "packages":          []string{pkg},
+         "monetizationTypes": []string{},
       },
    }
-   payload := map[string]any{
-      "query":     get_popular_titles,
-      "variables": variables,
+
+   payload := map[string]interface{}{
+      "operationName": "GetPopularTitles",
+      "variables":     variables,
+      "query":         graphqlQuery,
    }
+
    jsonData, err := json.Marshal(payload)
    if err != nil {
       return 0, "", fmt.Errorf("error marshaling JSON payload: %w", err)
    }
-   req, err := http.NewRequest("POST", "https://apis.justwatch.com/graphql", bytes.NewBuffer(jsonData))
+
+   httpReq, err := http.NewRequest("POST", "https://apis.justwatch.com/graphql", bytes.NewBuffer(jsonData))
    if err != nil {
       return 0, "", fmt.Errorf("error creating request: %w", err)
    }
-   req.Header.Set("Content-Type", "application/json")
+
+   httpReq.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0")
+   httpReq.Header.Set("Accept", "application/graphql-response+json,application/json;q=0.9")
+   httpReq.Header.Set("Accept-Language", "en-US,en;q=0.9")
+   httpReq.Header.Set("Content-Type", "application/json")
+   httpReq.Header.Set("Origin", "https://www.justwatch.com")
+   httpReq.Header.Set("Referer", "https://www.justwatch.com/")
+
    client := &http.Client{}
-   resp, err := client.Do(req)
+   resp, err := client.Do(httpReq)
    if err != nil {
       return 0, "", fmt.Errorf("HTTP request failed: %w", err)
    }
@@ -110,13 +152,23 @@ func fetchProviderData(pkg, country string) (int, string, error) {
       return 0, "", fmt.Errorf("failed to read response body: %w", err)
    }
 
-   if resp.StatusCode != http.StatusOK {
-      return 0, "", fmt.Errorf("API returned non-200 status code: %d\nBody: %s", resp.StatusCode, string(bodyBytes))
-   }
-
    var responseData ResponseData
    if err := json.Unmarshal(bodyBytes, &responseData); err != nil {
-      return 0, "", fmt.Errorf("error unmarshaling response JSON: %w", err)
+      return 0, "", fmt.Errorf("error unmarshaling response JSON: %w\nBody: %s", err, string(bodyBytes))
+   }
+
+   // Handle GraphQL specific errors
+   if len(responseData.Errors) > 0 {
+      var errMsgs []string
+      for _, e := range responseData.Errors {
+         errMsgs = append(errMsgs, e.Message)
+      }
+      return 0, "", fmt.Errorf("GraphQL error: %s", strings.Join(errMsgs, " | "))
+   }
+
+   // Guard against nil data if there were no errors but data is somehow missing
+   if responseData.Data == nil {
+      return 0, "", fmt.Errorf("API returned null data without an explicit error message")
    }
 
    total := responseData.Data.PopularTitles.TotalCount

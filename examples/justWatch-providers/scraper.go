@@ -63,16 +63,11 @@ func main() {
 
       fmt.Printf("[%d/%d] %s...\n", i+1, len(urls), targetURL)
 
-
-
-res, err := processURL(client, targetURL)
+      res, err := processURL(client, targetURL)
       if err != nil {
          // Halt the entire program immediately on ANY error
          log.Fatalf("  -> Fatal Error: %v. Stopping immediately.", err)
       }
-
-
-
 
       results = append(results, res)
    }

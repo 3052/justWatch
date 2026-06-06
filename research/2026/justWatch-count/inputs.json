@@ -24,16 +24,16 @@
     "package": "mlt"
   },
   {
-    "country": "NL",
-    "package": "cim"
-  },
-  {
-    "country": "UK",
+    "country": "GB",
     "package": "itv"
   },
   {
-    "country": "UK",
+    "country": "GB",
     "package": "wki"
+  },
+  {
+    "country": "NL",
+    "package": "cim"
   },
   {
     "country": "US",
@@ -73,15 +73,15 @@
   },
   {
     "country": "US",
-    "package": "plx"
-  },
-  {
-    "country": "US",
     "package": "ppp"
   },
   {
     "country": "US",
     "package": "ptv"
+  },
+  {
+    "country": "US",
+    "package": "pxp"
   },
   {
     "country": "US",
