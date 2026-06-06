@@ -63,17 +63,16 @@ func main() {
 
       fmt.Printf("[%d/%d] %s...\n", i+1, len(urls), targetURL)
 
-      res, err := processURL(client, targetURL)
-      if err != nil {
-         // If it's the specific totalCount error, halt the entire program immediately
-         if strings.Contains(err.Error(), "totalCount not found in JSON") {
-            log.Fatalf("  -> Fatal Error: %v. Stopping immediately.", err)
-         }
 
-         // For other errors (like timeouts), just log and continue
-         log.Printf("  -> Error: %v\n", err)
-         continue
+
+res, err := processURL(client, targetURL)
+      if err != nil {
+         // Halt the entire program immediately on ANY error
+         log.Fatalf("  -> Fatal Error: %v. Stopping immediately.", err)
       }
+
+
+
 
       results = append(results, res)
    }
