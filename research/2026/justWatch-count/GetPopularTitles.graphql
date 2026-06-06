@@ -1,0 +1,21 @@
+query GetPopularTitles(
+  $country: Country!
+  $popularTitlesFilter: TitleFilter
+  $popularTitlesSortBy: PopularTitlesSorting! = POPULAR
+  $first: Int! = 40
+  $sortRandomSeed: Int! = 0
+  $offset: Int = 0
+  $after: String
+) {
+  popularTitles(
+    country: $country
+    filter: $popularTitlesFilter
+    first: $first
+    sortBy: $popularTitlesSortBy
+    sortRandomSeed: $sortRandomSeed
+    offset: $offset
+    after: $after
+  ) {
+    totalCount
+  }
+}
