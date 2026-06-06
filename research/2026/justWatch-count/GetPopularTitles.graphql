@@ -1,11 +1,10 @@
 query GetPopularTitles(
   $country: Country!
+  $first: Int!
   $popularTitlesFilter: TitleFilter
-  $popularTitlesSortBy: PopularTitlesSorting! = POPULAR
-  $first: Int! = 40
-  $sortRandomSeed: Int! = 0
-  $offset: Int = 0
-  $after: String
+  $popularTitlesSortBy: PopularTitlesSorting!
+  $sortRandomSeed: Int!
+  $watchNowFilter: WatchNowOfferFilter!
 ) {
   popularTitles(
     country: $country
@@ -13,9 +12,22 @@ query GetPopularTitles(
     first: $first
     sortBy: $popularTitlesSortBy
     sortRandomSeed: $sortRandomSeed
-    offset: $offset
-    after: $after
   ) {
     totalCount
+    edges {
+      node {
+        ... on MovieOrShow {
+          watchNowOffer(
+            country: $country
+            filter: $watchNowFilter
+            platform: WEB
+          ) {
+            package {
+              clearName
+            }
+          }
+        }
+      }
+    }
   }
 }
