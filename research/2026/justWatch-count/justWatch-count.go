@@ -13,171 +13,244 @@ import (
    "strings"
 )
 
-//go:embed GetPopularTitles.graphql
-var graphqlQuery string
+//go:embed GetUrlMetadata.graphql
+var metadataQuery string
+
+//go:embed GetProviderTop10TitlesFallback.graphql
+var titlesQuery string
 
 // InputRequest models the expected structure of the input JSON file
 type InputRequest struct {
-   Package string `json:"package"`
-   Country string `json:"country"`
+   Path string `json:"path"`
 }
 
-// ResponseData models the structure to handle both successes and GraphQL errors
-type ResponseData struct {
-   Errors []struct {
-      Message string `json:"message"`
-   } `json:"errors"`
-   // Data is a pointer so it can safely unmarshal a JSON null
-   Data *struct {
-      PopularTitles struct {
-         TotalCount int `json:"totalCount"`
-         Edges      []struct {
-            Node struct {
-               WatchNowOffer struct {
-                  Package struct {
-                     ClearName string `json:"clearName"`
-                  } `json:"package"`
-               } `json:"watchNowOffer"`
-            } `json:"node"`
-         } `json:"edges"`
-      } `json:"popularTitles"`
-   } `json:"data"`
+// Provider models the JustWatch REST API response, using the slug
+type Provider struct {
+   ShortName string `json:"short_name"`
+   ClearName string `json:"clear_name"`
+   Slug      string `json:"slug"`
 }
+
+// Global cache to prevent re-downloading the heavy provider list for the same locale
+var providerCache = make(map[string][]Provider)
 
 func main() {
-   fileFlag := flag.String("file", "", "Path to JSON file containing package/country array (required)")
+   fileFlag := flag.String("file", "", "Path to JSON file containing an array of paths (required)")
    flag.Parse()
 
-   // 1. Validate that the flag was actually provided
    if *fileFlag == "" {
       flag.Usage()
       log.Fatal("Error: the -file flag is required.")
    }
 
-   // 2. Validate that the file actually exists before trying to read it
-   if _, err := os.Stat(*fileFlag); os.IsNotExist(err) {
-      log.Fatalf("Error: the file '%s' does not exist.", *fileFlag)
-   }
-
-   // 3. Safely read the file
    fileBytes, err := os.ReadFile(*fileFlag)
    if err != nil {
       log.Fatalf("Failed to read file '%s': %v", *fileFlag, err)
    }
 
-   var requests []InputRequest
-   if err := json.Unmarshal(fileBytes, &requests); err != nil {
+   var paths []string
+   if err := json.Unmarshal(fileBytes, &paths); err != nil {
       log.Fatalf("Failed to parse JSON data: %v", err)
    }
 
-   for _, req := range requests {
-      if req.Package == "" || req.Country == "" {
-         log.Printf("Skipping invalid entry (missing package or country): %+v", req)
+   for _, path := range paths {
+      path = strings.TrimSpace(path)
+      if path == "" {
+         log.Println("Skipping empty path entry")
          continue
       }
 
-      totalCount, providerName, err := fetchProviderData(req.Package, req.Country)
+      // 1. Get Locale & Country from Path
+      locale, err := fetchLocaleFromPath(path)
       if err != nil {
-         log.Printf("[%s - %s] Failed: %v\n", req.Package, req.Country, err)
-         continue
+         log.Fatalf("[%s] Failed to get metadata: %v\n", path, err)
       }
 
-      fmt.Printf("[%s - %s] Provider: %-15s | Total Count: %d\n", req.Package, req.Country, providerName, totalCount)
+      parts := strings.Split(locale, "_")
+      if len(parts) != 2 {
+         log.Fatalf("[%s] Invalid locale format received: %s\n", path, locale)
+      }
+      country := parts[1]
+
+      // 2. Resolve the Package Code (shortName) using the Locale & Path
+      pkgCode, providerName, err := resolvePackageFromPath(path, locale)
+      if err != nil {
+         log.Fatalf("[%s] Failed to resolve package code: %v\n", path, err)
+      }
+
+      // 3. Fetch the Total Count
+      totalCount, err := fetchTotalCount(pkgCode, country)
+      if err != nil {
+         log.Fatalf("[%s] Failed to fetch total count: %v\n", path, err)
+      }
+
+      fmt.Printf("Path: %-45s | Country: %s | Package: %-4s | Provider: %-20s | Total: %d\n",
+         path, country, pkgCode, providerName, totalCount)
    }
 }
 
-func fetchProviderData(pkg, country string) (int, string, error) {
+// fetchLocaleFromPath runs GetUrlMetadata to find the JustWatch locale (e.g. "en_US")
+func fetchLocaleFromPath(path string) (string, error) {
+   payload := map[string]interface{}{
+      "operationName": "GetUrlMetadata",
+      "variables": map[string]interface{}{
+         "fullPath": path,
+         "site":     "www",
+      },
+      "query": metadataQuery,
+   }
+
+   body, err := executeGraphQL(payload)
+   if err != nil {
+      return "", err
+   }
+
+   var resp struct {
+      Data struct {
+         UrlV2 struct {
+            Locale string `json:"locale"`
+         } `json:"urlV2"`
+      } `json:"data"`
+   }
+
+   if err := json.Unmarshal(body, &resp); err != nil {
+      return "", err
+   }
+   if resp.Data.UrlV2.Locale == "" {
+      return "", fmt.Errorf("API returned empty locale for path")
+   }
+
+   return resp.Data.UrlV2.Locale, nil
+}
+
+// resolvePackageFromPath fetches the provider list (using cache) and matches the slug
+func resolvePackageFromPath(path, locale string) (string, string, error) {
+   // Extract the slug from the end of the URL path (e.g. "/us/provider/hbo-max" -> "hbo-max")
+   cleanPath := strings.TrimRight(path, "/")
+   segments := strings.Split(cleanPath, "/")
+   urlSlug := segments[len(segments)-1]
+
+   // Check the in-memory cache first to avoid slamming the network
+   providers, cached := providerCache[locale]
+
+   if !cached {
+      restURL := fmt.Sprintf("https://apis.justwatch.com/content/providers/locale/%s", locale)
+
+      req, err := http.NewRequest("GET", restURL, nil)
+      if err != nil {
+         return "", "", err
+      }
+      req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0")
+
+      client := &http.Client{}
+      resp, err := client.Do(req)
+      if err != nil {
+         return "", "", err
+      }
+      defer resp.Body.Close()
+
+      if resp.StatusCode != 200 {
+         return "", "", fmt.Errorf("REST API returned status %d", resp.StatusCode)
+      }
+
+      if err := json.NewDecoder(resp.Body).Decode(&providers); err != nil {
+         return "", "", err
+      }
+
+      // Save to cache for the next time this locale is requested
+      providerCache[locale] = providers
+   }
+
+   // Exact match using the API's slug
+   for _, p := range providers {
+      if p.Slug == urlSlug {
+         return p.ShortName, p.ClearName, nil
+      }
+   }
+
+   return "", "", fmt.Errorf("could not find provider with slug '%s' in locale '%s'", urlSlug, locale)
+}
+
+// fetchTotalCount runs the GetProviderTop10TitlesFallback query to get the catalog size
+func fetchTotalCount(pkg, country string) (int, error) {
    variables := map[string]interface{}{
       "country":             country,
-      "first":               1, // Only need 1 item to grab the provider name
-      "popularTitlesSortBy": "POPULAR",
-      "sortRandomSeed":      0,
-      "offset":              0,
-      "after":               "",
+      "first":               0, // 0 is fine since we aren't fetching any edges
+      "popularTitlesSortBy": "TRENDING",
       "popularTitlesFilter": map[string]interface{}{
-         "ageCertifications":          []string{},
-         "excludeGenres":              []string{},
-         "excludeProductionCountries": []string{},
-         "objectTypes":                []string{},
-         "productionCountries":        []string{},
-         "subgenres":                  []string{},
-         "genres":                     []string{},
-         "packages":                   []string{pkg},
-         "excludeIrrelevantTitles":    false,
-         "presentationTypes":          []string{},
-         "monetizationTypes":          []string{},
-         "searchQuery":                "",
+         "packages": []string{pkg},
          "tomatoMeter": map[string]int{
             "min": 60,
          },
       },
-      "watchNowFilter": map[string]interface{}{
-         "packages":          []string{pkg},
-         "monetizationTypes": []string{},
-      },
    }
 
    payload := map[string]interface{}{
-      "operationName": "GetPopularTitles",
+      "operationName": "GetProviderTop10TitlesFallback",
       "variables":     variables,
-      "query":         graphqlQuery,
+      "query":         titlesQuery,
    }
 
+   body, err := executeGraphQL(payload)
+   if err != nil {
+      return 0, err
+   }
+
+   var resp struct {
+      Errors []struct {
+         Message string `json:"message"`
+      } `json:"errors"`
+      Data *struct {
+         PopularTitles struct {
+            TotalCount int `json:"totalCount"`
+         } `json:"popularTitles"`
+      } `json:"data"`
+   }
+
+   if err := json.Unmarshal(body, &resp); err != nil {
+      return 0, err
+   }
+   if len(resp.Errors) > 0 {
+      return 0, fmt.Errorf("GraphQL error: %s", resp.Errors[0].Message)
+   }
+   if resp.Data == nil {
+      return 0, fmt.Errorf("API returned null data")
+   }
+
+   return resp.Data.PopularTitles.TotalCount, nil
+}
+
+// executeGraphQL helper function
+func executeGraphQL(payload map[string]interface{}) ([]byte, error) {
    jsonData, err := json.Marshal(payload)
    if err != nil {
-      return 0, "", fmt.Errorf("error marshaling JSON payload: %w", err)
+      return nil, err
    }
 
-   httpReq, err := http.NewRequest("POST", "https://apis.justwatch.com/graphql", bytes.NewBuffer(jsonData))
+   req, err := http.NewRequest("POST", "https://apis.justwatch.com/graphql", bytes.NewBuffer(jsonData))
    if err != nil {
-      return 0, "", fmt.Errorf("error creating request: %w", err)
+      return nil, err
    }
 
-   httpReq.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0")
-   httpReq.Header.Set("Accept", "application/graphql-response+json,application/json;q=0.9")
-   httpReq.Header.Set("Accept-Language", "en-US,en;q=0.9")
-   httpReq.Header.Set("Content-Type", "application/json")
-   httpReq.Header.Set("Origin", "https://www.justwatch.com")
-   httpReq.Header.Set("Referer", "https://www.justwatch.com/")
+   req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0")
+   req.Header.Set("Accept", "application/graphql-response+json,application/json;q=0.9")
+   req.Header.Set("Content-Type", "application/json")
+   req.Header.Set("Origin", "https://www.justwatch.com")
 
    client := &http.Client{}
-   resp, err := client.Do(httpReq)
+   resp, err := client.Do(req)
    if err != nil {
-      return 0, "", fmt.Errorf("HTTP request failed: %w", err)
+      return nil, err
    }
    defer resp.Body.Close()
 
    bodyBytes, err := io.ReadAll(resp.Body)
    if err != nil {
-      return 0, "", fmt.Errorf("failed to read response body: %w", err)
+      return nil, err
    }
 
-   var responseData ResponseData
-   if err := json.Unmarshal(bodyBytes, &responseData); err != nil {
-      return 0, "", fmt.Errorf("error unmarshaling response JSON: %w\nBody: %s", err, string(bodyBytes))
+   if resp.StatusCode != http.StatusOK {
+      return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(bodyBytes))
    }
-
-   // Handle GraphQL specific errors
-   if len(responseData.Errors) > 0 {
-      var errMsgs []string
-      for _, e := range responseData.Errors {
-         errMsgs = append(errMsgs, e.Message)
-      }
-      return 0, "", fmt.Errorf("GraphQL error: %s", strings.Join(errMsgs, " | "))
-   }
-
-   // Guard against nil data if there were no errors but data is somehow missing
-   if responseData.Data == nil {
-      return 0, "", fmt.Errorf("API returned null data without an explicit error message")
-   }
-
-   total := responseData.Data.PopularTitles.TotalCount
-   provider := "Unknown"
-
-   // Check if we got at least one edge back to extract the package name
-   if len(responseData.Data.PopularTitles.Edges) > 0 {
-      provider = responseData.Data.PopularTitles.Edges[0].Node.WatchNowOffer.Package.ClearName
-   }
-
-   return total, provider, nil
+   return bodyBytes, nil
 }
