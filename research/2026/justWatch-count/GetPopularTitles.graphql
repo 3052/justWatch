@@ -13,7 +13,6 @@ query GetPopularTitles(
     sortBy: $popularTitlesSortBy
     sortRandomSeed: $sortRandomSeed
   ) {
-    totalCount
     edges {
       node {
         ... on MovieOrShow {
@@ -29,5 +28,6 @@ query GetPopularTitles(
         }
       }
     }
+    totalCount
   }
 }

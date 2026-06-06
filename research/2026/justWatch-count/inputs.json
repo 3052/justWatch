@@ -1,6 +1,90 @@
 [
   {
-    "package": "cpd",
-    "country": "CZ"
+    "country": "BE",
+    "package": "rtb"
+  },
+  {
+    "country": "BR",
+    "package": "ofx"
+  },
+  {
+    "country": "CA",
+    "package": "crv"
+  },
+  {
+    "country": "CA",
+    "package": "ctc"
+  },
+  {
+    "country": "CZ",
+    "package": "cpd"
+  },
+  {
+    "country": "FR",
+    "package": "mlt"
+  },
+  {
+    "country": "NL",
+    "package": "cim"
+  },
+  {
+    "country": "UK",
+    "package": "itv"
+  },
+  {
+    "country": "UK",
+    "package": "wki"
+  },
+  {
+    "country": "US",
+    "package": "acp"
+  },
+  {
+    "country": "US",
+    "package": "crc"
+  },
+  {
+    "country": "US",
+    "package": "dnp"
+  },
+  {
+    "country": "US",
+    "package": "hlu"
+  },
+  {
+    "country": "US",
+    "package": "knp"
+  },
+  {
+    "country": "US",
+    "package": "mbi"
+  },
+  {
+    "country": "US",
+    "package": "mxx"
+  },
+  {
+    "country": "US",
+    "package": "nbc"
+  },
+  {
+    "country": "US",
+    "package": "pct"
+  },
+  {
+    "country": "US",
+    "package": "plx"
+  },
+  {
+    "country": "US",
+    "package": "ppp"
+  },
+  {
+    "country": "US",
+    "package": "ptv"
+  },
+  {
+    "country": "US",
+    "package": "rkc"
   }
 ]

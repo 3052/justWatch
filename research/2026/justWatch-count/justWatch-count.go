@@ -13,7 +13,7 @@ import (
 )
 
 //go:embed GetPopularTitles.graphql
-var graphqlQuery string
+var get_popular_titles string
 
 // InputRequest models the expected structure of the input JSON file
 type InputRequest struct {
@@ -70,61 +70,36 @@ func main() {
 }
 
 func fetchProviderData(pkg, country string) (int, string, error) {
-   variables := map[string]interface{}{
-      "country":             country,
-      "first":               1, // Only need 1 item to grab the provider name
-      "popularTitlesSortBy": "POPULAR",
-      "sortRandomSeed":      0,
-      "offset":              0,
-      "after":               "",
-      "popularTitlesFilter": map[string]interface{}{
-         "ageCertifications":          []string{},
-         "excludeGenres":              []string{},
-         "excludeProductionCountries": []string{},
-         "objectTypes":                []string{},
-         "productionCountries":        []string{},
-         "subgenres":                  []string{},
-         "genres":                     []string{},
-         "packages":                   []string{pkg},
-         "excludeIrrelevantTitles":    false,
-         "presentationTypes":          []string{},
-         "monetizationTypes":          []string{},
-         "searchQuery":                "",
+   variables := map[string]any{
+      "country": country,
+      "first":   1, // Only need 1 item to grab the provider name
+      "popularTitlesFilter": map[string]any{
+         "packages": []string{pkg},
          "tomatoMeter": map[string]int{
             "min": 60,
          },
       },
-      "watchNowFilter": map[string]interface{}{
-         "packages":          []string{pkg},
-         "monetizationTypes": []string{},
+      "popularTitlesSortBy": "POPULAR",
+      "sortRandomSeed":      0,
+      "watchNowFilter": map[string]any{
+         "packages": []string{pkg},
       },
    }
-
-   payload := map[string]interface{}{
-      "operationName": "GetPopularTitles",
-      "variables":     variables,
-      "query":         graphqlQuery,
+   payload := map[string]any{
+      "query":     get_popular_titles,
+      "variables": variables,
    }
-
    jsonData, err := json.Marshal(payload)
    if err != nil {
       return 0, "", fmt.Errorf("error marshaling JSON payload: %w", err)
    }
-
-   httpReq, err := http.NewRequest("POST", "https://apis.justwatch.com/graphql", bytes.NewBuffer(jsonData))
+   req, err := http.NewRequest("POST", "https://apis.justwatch.com/graphql", bytes.NewBuffer(jsonData))
    if err != nil {
       return 0, "", fmt.Errorf("error creating request: %w", err)
    }
-
-   httpReq.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0")
-   httpReq.Header.Set("Accept", "application/graphql-response+json,application/json;q=0.9")
-   httpReq.Header.Set("Accept-Language", "en-US,en;q=0.9")
-   httpReq.Header.Set("Content-Type", "application/json")
-   httpReq.Header.Set("Origin", "https://www.justwatch.com")
-   httpReq.Header.Set("Referer", "https://www.justwatch.com/")
-
+   req.Header.Set("Content-Type", "application/json")
    client := &http.Client{}
-   resp, err := client.Do(httpReq)
+   resp, err := client.Do(req)
    if err != nil {
       return 0, "", fmt.Errorf("HTTP request failed: %w", err)
    }
