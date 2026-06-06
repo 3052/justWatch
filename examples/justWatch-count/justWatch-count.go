@@ -10,6 +10,7 @@ import (
    "log"
    "net/http"
    "os"
+   "sort"
    "strings"
 )
 
@@ -19,16 +20,20 @@ var metadataQuery string
 //go:embed GetProviderTop10TitlesFallback.graphql
 var titlesQuery string
 
-// InputRequest models the expected structure of the input JSON file
-type InputRequest struct {
-   Path string `json:"path"`
+// Provider models the JustWatch REST API response
+type Provider struct {
+   ShortName     string `json:"short_name"`
+   TechnicalName string `json:"technical_name"`
+   ClearName     string `json:"clear_name"`
+   Slug          string `json:"slug"`
 }
 
-// Provider models the JustWatch REST API response, using the slug
-type Provider struct {
-   ShortName string `json:"short_name"`
-   ClearName string `json:"clear_name"`
-   Slug      string `json:"slug"`
+// Result models the final data for our Markdown table
+type Result struct {
+   Count     int
+   Country   string
+   ClearName string
+   Path      string
 }
 
 // Global cache to prevent re-downloading the heavy provider list for the same locale
@@ -53,14 +58,18 @@ func main() {
       log.Fatalf("Failed to parse JSON data: %v", err)
    }
 
-   for _, path := range paths {
+   var results []Result
+
+   for i, path := range paths {
       path = strings.TrimSpace(path)
       if path == "" {
-         log.Println("Skipping empty path entry")
          continue
       }
 
-      // 1. Get Locale & Country from Path
+      // Progress indicator (writes to stderr)
+      log.Printf("[%d/%d] Processing: %s...", i+1, len(paths), path)
+
+      // 1. Get Locale from Path
       locale, err := fetchLocaleFromPath(path)
       if err != nil {
          log.Fatalf("[%s] Failed to get metadata: %v\n", path, err)
@@ -70,22 +79,52 @@ func main() {
       if len(parts) != 2 {
          log.Fatalf("[%s] Invalid locale format received: %s\n", path, locale)
       }
-      country := parts[1]
+      // Extract country directly from the path to match user examples (e.g. /uk/ -> UK)
+      pathSegments := strings.Split(strings.Trim(path, "/"), "/")
+      displayCountry := strings.ToUpper(pathSegments[0])
 
-      // 2. Resolve the Package Code (shortName) using the Locale & Path
-      pkgCode, providerName, err := resolvePackageFromPath(path, locale)
+      // 2. Resolve the Package Code & Clear Name using the Locale & Path
+      pkgCode, clearName, err := resolvePackageFromPath(path, locale)
       if err != nil {
          log.Fatalf("[%s] Failed to resolve package code: %v\n", path, err)
       }
 
-      // 3. Fetch the Total Count
-      totalCount, err := fetchTotalCount(pkgCode, country)
+      // 3. Fetch the Total Count (using the API's actual country code from locale, e.g. US, GB, CZ)
+      apiCountry := parts[1]
+      totalCount, err := fetchTotalCount(pkgCode, apiCountry)
       if err != nil {
          log.Fatalf("[%s] Failed to fetch total count: %v\n", path, err)
       }
 
-      fmt.Printf("Path: %-45s | Country: %s | Package: %-4s | Provider: %-20s | Total: %d\n",
-         path, country, pkgCode, providerName, totalCount)
+      // Show completion for this item (writes to stderr)
+      log.Printf("[%d/%d] Done: [%s] %s -> %d titles", i+1, len(paths), displayCountry, clearName, totalCount)
+
+      results = append(results, Result{
+         Count:     totalCount,
+         Country:   displayCountry,
+         ClearName: clearName,
+         Path:      path,
+      })
+   }
+
+   // Sort results by Count descending
+   sort.Slice(results, func(i, j int) bool {
+      return results[i].Count > results[j].Count
+   })
+
+   // Print Markdown Table (writes to stdout)
+   fmt.Println("\n| Titles | Country | Provider |")
+   fmt.Println("|---|---|---|")
+   for _, r := range results {
+      fmt.Printf("| %d | %s | [%s] |\n", r.Count, r.Country, r.ClearName)
+   }
+
+   fmt.Println()
+
+   // Print Markdown Links (writes to stdout)
+   for _, r := range results {
+      // Appending ?tomatoMeter=60 to the URL as requested in the example
+      fmt.Printf("[%s]:https://justwatch.com%s?tomatoMeter=60\n", r.ClearName, r.Path)
    }
 }
 
@@ -125,12 +164,10 @@ func fetchLocaleFromPath(path string) (string, error) {
 
 // resolvePackageFromPath fetches the provider list (using cache) and matches the slug
 func resolvePackageFromPath(path, locale string) (string, string, error) {
-   // Extract the slug from the end of the URL path (e.g. "/us/provider/hbo-max" -> "hbo-max")
    cleanPath := strings.TrimRight(path, "/")
    segments := strings.Split(cleanPath, "/")
    urlSlug := segments[len(segments)-1]
 
-   // Check the in-memory cache first to avoid slamming the network
    providers, cached := providerCache[locale]
 
    if !cached {
@@ -157,11 +194,9 @@ func resolvePackageFromPath(path, locale string) (string, string, error) {
          return "", "", err
       }
 
-      // Save to cache for the next time this locale is requested
       providerCache[locale] = providers
    }
 
-   // Exact match using the API's slug
    for _, p := range providers {
       if p.Slug == urlSlug {
          return p.ShortName, p.ClearName, nil
@@ -175,7 +210,7 @@ func resolvePackageFromPath(path, locale string) (string, string, error) {
 func fetchTotalCount(pkg, country string) (int, error) {
    variables := map[string]interface{}{
       "country":             country,
-      "first":               0, // 0 is fine since we aren't fetching any edges
+      "first":               0,
       "popularTitlesSortBy": "TRENDING",
       "popularTitlesFilter": map[string]interface{}{
          "packages": []string{pkg},
