@@ -120,6 +120,7 @@
 - https://justwatch.com/us/movie/fresh-2022
 - https://justwatch.com/us/movie/kimi-2022
 - https://justwatch.com/us/movie/knives-out-2
+- https://justwatch.com/us/movie/prey-2022
 - https://justwatch.com/us/movie/tar-2022
 - https://justwatch.com/us/movie/the-northman
 - https://justwatch.com/us/movie/were-all-going-to-the-worlds-fair
