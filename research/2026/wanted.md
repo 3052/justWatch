@@ -15,6 +15,7 @@
 - https://justwatch.com/us/movie/in-the-grey
 - https://justwatch.com/us/movie/mike-and-nick-and-nick-and-alice
 - https://justwatch.com/us/movie/mother-mary
+- https://justwatch.com/us/movie/night-nurse-2026
 - https://justwatch.com/us/movie/obsession-2026
 - https://justwatch.com/us/movie/one-night-only-2026
 - https://justwatch.com/us/movie/outcome
