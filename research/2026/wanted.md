@@ -338,7 +338,8 @@ https://justwatch.com/us/movie/perfect-blue
 
 ## 1988
 
-https://justwatch.com/us/movie/my-neighbor-totoro
+- https://justwatch.com/us/movie/cop
+- https://justwatch.com/us/movie/my-neighbor-totoro
 
 ## 1986
 
