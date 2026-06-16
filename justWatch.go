@@ -17,34 +17,6 @@ import (
    "strings"
 )
 
-//go:embed GetUrlTitleDetails.gql
-var get_url_title_details string
-
-//go:embed BackendConstantsFetcherQuery.gql
-var backend_constants_fetcher_query string
-
-var params_to_delete = []struct {
-   date  string
-   key   string
-   value string
-}{
-   {"2026-03-08", "searchReferral", ""},
-   {"2026-03-07", "referrer", "JustWatch"},
-   {"2026-03-04", "subId3", "justappsvod"},
-   {"2026-02-26", "autoplay", "1"},
-   {"2026-02-26", "searchReferral", "publisher"},
-   {"2026-02-26", "source", "bing"},
-   {"2026-02-26", "source", "search-feeds"},
-   {"2026-02-26", "utm_campaign", "vod_feed"},
-   {"2026-02-26", "utm_content", ""},
-   {"2026-02-26", "utm_medium", "deeplink"},
-   {"2026-02-26", "utm_medium", "partner"},
-   {"2026-02-26", "utm_source", "justWatch-v2-catalog"},
-   {"2026-02-26", "utm_source", "justwatch"},
-   {"2026-02-26", "utm_source", "universal_search"},
-   {"2026-02-26", "utm_term", ""},
-}
-
 // 2025-11-04
 var EnUs = Locales{
    {FullLocale: "en_US", Country: "US", CountryName: "United States"},
@@ -186,6 +158,34 @@ var EnUs = Locales{
    {FullLocale: "ar_LY", Country: "LY", CountryName: "Libya"},
    {FullLocale: "en_BM", Country: "BM", CountryName: "Bermuda"},
    {FullLocale: "ar_YE", Country: "YE", CountryName: "Yemen"},
+}
+
+//go:embed GetUrlTitleDetails.gql
+var get_url_title_details string
+
+//go:embed BackendConstantsFetcherQuery.gql
+var backend_constants_fetcher_query string
+
+var params_to_delete = []struct {
+   date  string
+   key   string
+   value string
+}{
+   {"2026-03-08", "searchReferral", ""},
+   {"2026-03-07", "referrer", "JustWatch"},
+   {"2026-03-04", "subId3", "justappsvod"},
+   {"2026-02-26", "autoplay", "1"},
+   {"2026-02-26", "searchReferral", "publisher"},
+   {"2026-02-26", "source", "bing"},
+   {"2026-02-26", "source", "search-feeds"},
+   {"2026-02-26", "utm_campaign", "vod_feed"},
+   {"2026-02-26", "utm_content", ""},
+   {"2026-02-26", "utm_medium", "deeplink"},
+   {"2026-02-26", "utm_medium", "partner"},
+   {"2026-02-26", "utm_source", "justWatch-v2-catalog"},
+   {"2026-02-26", "utm_source", "justwatch"},
+   {"2026-02-26", "utm_source", "universal_search"},
+   {"2026-02-26", "utm_term", ""},
 }
 
 func getUrlGroupingKey(rawUrl string) string {
