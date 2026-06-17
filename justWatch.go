@@ -160,11 +160,13 @@ var EnUs = Locales{
    {FullLocale: "ar_YE", Country: "YE", CountryName: "Yemen"},
 }
 
-//go:embed GetUrlTitleDetails.gql
-var get_url_title_details string
-
 //go:embed BackendConstantsFetcherQuery.gql
 var backend_constants_fetcher_query string
+
+///
+
+//go:embed GetUrlTitleDetails.gql
+var get_url_title_details string
 
 var params_to_delete = []struct {
    date  string
