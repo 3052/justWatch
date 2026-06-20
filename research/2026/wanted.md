@@ -331,6 +331,10 @@ https://justwatch.com/us/movie/perfect-blue
 - https://justwatch.com/us/movie/cape-fear
 - https://justwatch.com/us/movie/point-break-1991
 
+## 1990
+
+https://justwatch.com/us/movie/pretty-woman
+
 ## 1989
 
 - https://justwatch.com/us/movie/bill-and-teds-excellent-adventure
