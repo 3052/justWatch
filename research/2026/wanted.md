@@ -312,6 +312,7 @@ https://justwatch.com/us/movie/perfect-blue
 
 ## 1995
 
+- https://justwatch.com/us/movie/ghost-in-the-shell
 - https://justwatch.com/us/movie/leaving-las-vegas
 - https://justwatch.com/us/movie/whisper-of-the-heart
 
