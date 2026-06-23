@@ -161,6 +161,7 @@
 
 ## 2018
 
+- https://justwatch.com/us/movie/bad-times-at-the-el-royale
 - https://justwatch.com/us/movie/first-man-2018
 - https://justwatch.com/us/movie/hereditary
 - https://justwatch.com/us/movie/mid90s
