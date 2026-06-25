@@ -190,6 +190,38 @@ var params_to_delete = []struct {
    {"2026-02-26", "utm_term", ""},
 }
 
+// https://justwatch.com/us/movie/goodfellas
+func GetPath(rawUrl string) (string, error) {
+   url_parse, err := url.Parse(rawUrl)
+   if err != nil {
+      return "", err
+   }
+   if url_parse.Scheme == "" {
+      return "", errors.New("invalid URL: scheme is missing")
+   }
+   return url_parse.Path, nil
+}
+
+///
+
+func GroupAndSortByUrl(offers []*EnrichedOffer) ([]string, map[string][]*EnrichedOffer) {
+   groupedOffers := make(map[string][]*EnrichedOffer)
+   for _, offer := range offers {
+      key := getUrlGroupingKey(offer.Offer.StandardWebUrl)
+      groupedOffers[key] = append(groupedOffers[key], offer)
+   }
+   for _, offerGroup := range groupedOffers {
+      slices.SortFunc(offerGroup, func(a, b *EnrichedOffer) int {
+         return cmp.Compare(a.Locale.Country, b.Locale.Country)
+      })
+   }
+   // This works for Go 1.21 and older.
+   keys := slices.SortedFunc(maps.Keys(groupedOffers), func(a, b string) int {
+      return cmp.Compare(len(a), len(b))
+   })
+   return keys, groupedOffers
+}
+
 func getUrlGroupingKey(rawUrl string) string {
    trimmedUrl := strings.TrimSuffix(rawUrl, "\n")
    parsed, err := url.Parse(trimmedUrl)
@@ -211,16 +243,8 @@ func getUrlGroupingKey(rawUrl string) string {
    return parsed.String()
 }
 
-// https://justwatch.com/us/movie/goodfellas
-func GetPath(rawUrl string) (string, error) {
-   url_parse, err := url.Parse(rawUrl)
-   if err != nil {
-      return "", err
-   }
-   if url_parse.Scheme == "" {
-      return "", errors.New("invalid URL: scheme is missing")
-   }
-   return url_parse.Path, nil
+type Content struct {
+   HrefLangTags []HrefLangTag `json:"href_lang_tags"`
 }
 
 func (c *Content) Fetch(path string) error {
@@ -244,23 +268,9 @@ func (c *Content) Fetch(path string) error {
    return json.NewDecoder(resp.Body).Decode(c)
 }
 
-type Content struct {
-   HrefLangTags []HrefLangTag `json:"href_lang_tags"`
-}
-
-// FilterOffers removes offers with unwanted monetization types.
-func FilterOffers(offers []*EnrichedOffer, unwantedTypes ...string) []*EnrichedOffer {
-   unwantedSet := make(map[string]struct{}, len(unwantedTypes))
-   for _, unwanted := range unwantedTypes {
-      unwantedSet[unwanted] = struct{}{}
-   }
-   var filteredOffers []*EnrichedOffer
-   for _, offer := range offers {
-      if _, found := unwantedSet[offer.Offer.MonetizationType]; !found {
-         filteredOffers = append(filteredOffers, offer)
-      }
-   }
-   return filteredOffers
+type EnrichedOffer struct {
+   Locale *Locale
+   Offer  *Offer
 }
 
 // Deduplicate removes true duplicates where both the Offer and Locale are identical.
@@ -284,9 +294,24 @@ func Deduplicate(offers []*EnrichedOffer) []*EnrichedOffer {
    })
 }
 
-type EnrichedOffer struct {
-   Locale *Locale
-   Offer  *Offer
+// FilterOffers removes offers with unwanted monetization types.
+func FilterOffers(offers []*EnrichedOffer, unwantedTypes ...string) []*EnrichedOffer {
+   unwantedSet := make(map[string]struct{}, len(unwantedTypes))
+   for _, unwanted := range unwantedTypes {
+      unwantedSet[unwanted] = struct{}{}
+   }
+   var filteredOffers []*EnrichedOffer
+   for _, offer := range offers {
+      if _, found := unwantedSet[offer.Offer.MonetizationType]; !found {
+         filteredOffers = append(filteredOffers, offer)
+      }
+   }
+   return filteredOffers
+}
+
+type HrefLangTag struct {
+   Href   string // /ar/pelicula/mulholland-drive
+   Locale string // es_AR
 }
 
 func (h *HrefLangTag) Offers(localeVar *Locale) ([]Offer, error) {
@@ -332,24 +357,10 @@ func (h *HrefLangTag) Offers(localeVar *Locale) ([]Offer, error) {
    return result.Data.Url.Node.Offers, nil
 }
 
-type HrefLangTag struct {
-   Href   string // /ar/pelicula/mulholland-drive
-   Locale string // es_AR
-}
-
 type Locale struct {
    FullLocale  string
    Country     string
    CountryName string
-}
-
-func (l Locales) Locale(tag *HrefLangTag) (*Locale, bool) {
-   for _, locale_data := range l {
-      if locale_data.FullLocale == tag.Locale {
-         return &locale_data, true
-      }
-   }
-   return nil, false
 }
 
 type Locales []Locale
@@ -399,28 +410,17 @@ func FetchLocales(language string) (Locales, error) {
    return result.Data.Locales, nil
 }
 
+func (l Locales) Locale(tag *HrefLangTag) (*Locale, bool) {
+   for _, locale_data := range l {
+      if locale_data.FullLocale == tag.Locale {
+         return &locale_data, true
+      }
+   }
+   return nil, false
+}
+
 type Offer struct {
    ElementCount     int
    MonetizationType string
    StandardWebUrl   string
-}
-
-///
-
-func GroupAndSortByUrl(offers []*EnrichedOffer) ([]string, map[string][]*EnrichedOffer) {
-   groupedOffers := make(map[string][]*EnrichedOffer)
-   for _, offer := range offers {
-      key := getUrlGroupingKey(offer.Offer.StandardWebUrl)
-      groupedOffers[key] = append(groupedOffers[key], offer)
-   }
-   for _, offerGroup := range groupedOffers {
-      slices.SortFunc(offerGroup, func(a, b *EnrichedOffer) int {
-         return cmp.Compare(a.Locale.Country, b.Locale.Country)
-      })
-   }
-   // This works for Go 1.21 and older.
-   keys := slices.SortedFunc(maps.Keys(groupedOffers), func(a, b string) int {
-      return cmp.Compare(len(a), len(b))
-   })
-   return keys, groupedOffers
 }
