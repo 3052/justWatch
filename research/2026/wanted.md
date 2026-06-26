@@ -39,6 +39,7 @@
 - https://justwatch.com/us/tv-show/cape-fear
 - https://justwatch.com/us/tv-show/dtf-st-louis
 - https://justwatch.com/us/tv-show/his-and-hers
+- https://justwatch.com/us/tv-show/kokaku-kidotai
 - https://justwatch.com/us/tv-show/lucky
 - https://justwatch.com/us/tv-show/margos-got-money-troubles
 - https://justwatch.com/us/tv-show/maximum-pleasure-guaranteed

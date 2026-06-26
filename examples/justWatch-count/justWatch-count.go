@@ -14,6 +14,9 @@ import (
    "strings"
 )
 
+// Global constant for the minimum Rotten Tomatoes score
+const TomatoMeterMin = 50
+
 //go:embed GetUrlMetadata.graphql
 var metadataQuery string
 
@@ -101,7 +104,7 @@ func fetchTotalCount(pkg, country string) (int, error) {
       "popularTitlesFilter": map[string]interface{}{
          "packages": []string{pkg},
          "tomatoMeter": map[string]int{
-            "min": 60,
+            "min": TomatoMeterMin,
          },
       },
    }
@@ -225,8 +228,7 @@ func main() {
 
    // Print Markdown Links (writes to stdout)
    for _, r := range results {
-      // Appending ?tomatoMeter=60 to the URL as requested in the example
-      fmt.Printf("[%s]:https://justwatch.com%s?tomatoMeter=60\n", r.ClearName, r.Path)
+      fmt.Printf("[%s]:https://justwatch.com%s?tomatoMeter=%d\n", r.ClearName, r.Path, TomatoMeterMin)
    }
 }
 
