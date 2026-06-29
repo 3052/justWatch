@@ -163,8 +163,6 @@ var EnUs = Locales{
 //go:embed BackendConstantsFetcherQuery.gql
 var backend_constants_fetcher_query string
 
-///
-
 //go:embed GetUrlTitleDetails.gql
 var get_url_title_details string
 
@@ -201,8 +199,6 @@ func GetPath(rawUrl string) (string, error) {
    }
    return url_parse.Path, nil
 }
-
-///
 
 func GroupAndSortByUrl(offers []*EnrichedOffer) ([]string, map[string][]*EnrichedOffer) {
    groupedOffers := make(map[string][]*EnrichedOffer)
