@@ -1,4 +1,3 @@
-// markdown.go
 package scarlet
 
 import (
@@ -531,3 +530,5 @@ func (s *streamingMarkdownRenderer) write(text string) {
       }
    }
 }
+
+// markdown.go

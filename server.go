@@ -1,4 +1,3 @@
-// server.go
 package scarlet
 
 import (
@@ -161,3 +160,5 @@ func handleRoot(w http.ResponseWriter, r *http.Request, cfg *AppConfig, headerHT
    fmt.Fprint(w, footerHTML)
    return nil
 }
+
+// server.go

@@ -1,4 +1,3 @@
-// models.go
 package scarlet
 
 type AppConfig struct {
@@ -43,3 +42,5 @@ type Usage struct {
    TotalTokens         int                 `json:"total_tokens"`
    PromptTokensDetails PromptTokensDetails `json:"prompt_tokens_details"`
 }
+
+// models.go

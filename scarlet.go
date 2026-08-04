@@ -1,4 +1,3 @@
-// scarlet.go
 package scarlet
 
 import (
@@ -173,3 +172,5 @@ func processChat(messages []Message, cfg *AppConfig, onToken func(text string)) 
 
    return consumeStream(resp.Body, onToken)
 }
+
+// scarlet.go
