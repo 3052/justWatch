@@ -13,6 +13,7 @@
 - https://justwatch.com/us/movie/huntington
 - https://justwatch.com/us/movie/i-want-your-sex
 - https://justwatch.com/us/movie/in-the-grey
+- https://justwatch.com/us/movie/klara-and-the-sun
 - https://justwatch.com/us/movie/mike-and-nick-and-nick-and-alice
 - https://justwatch.com/us/movie/mother-mary
 - https://justwatch.com/us/movie/night-nurse-2026
