@@ -137,6 +137,7 @@ func (c *client) do_address() error {
       time.Sleep(c.sleep)
    }
    enrichedOffers := Deduplicate(allEnrichedOffers)
+   // Empty filter string means no filtering — return all offers.
    var filters []string
    if c.filters != "" {
       filters = strings.Split(c.filters, ",")
@@ -168,3 +169,5 @@ func (c *client) do_address() error {
    log.Println("WriteFile", name)
    return os.WriteFile(name, data.Bytes(), os.ModePerm)
 }
+
+// main.go

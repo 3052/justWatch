@@ -61,6 +61,7 @@ func GroupAndSortByUrl(offers []*EnrichedOffer) ([]string, map[string][]*Enriche
          return cmp.Compare(a.Locale.Country, b.Locale.Country)
       })
    }
+   // This works for Go 1.21 and older.
    keys := slices.SortedFunc(maps.Keys(groupedOffers), func(a, b string) int {
       return cmp.Compare(len(a), len(b))
    })
@@ -78,6 +79,8 @@ func getUrlGroupingKey(rawUrl string) string {
    }
    query := parsed.Query()
    for _, rule := range params_to_delete {
+      // .Get() returns the first value. If the key doesn't exist, it returns "".
+      // This perfectly handles the "assume one value" rule.
       if query.Get(rule.key) == rule.value {
          delete(query, rule.key)
       }
@@ -116,7 +119,10 @@ type EnrichedOffer struct {
    Offer  *Offer
 }
 
+// Deduplicate removes true duplicates where both the Offer and Locale are identical.
 func Deduplicate(offers []*EnrichedOffer) []*EnrichedOffer {
+   // 1. Sort the slice. This brings identical EnrichedOffers next to each other.
+   // This part is correct as it compares the underlying values.
    slices.SortFunc(offers, func(a, b *EnrichedOffer) int {
       return cmp.Or(
          cmp.Compare(a.Offer.StandardWebUrl, b.Offer.StandardWebUrl),
@@ -125,6 +131,7 @@ func Deduplicate(offers []*EnrichedOffer) []*EnrichedOffer {
          cmp.Compare(a.Locale.FullLocale, b.Locale.FullLocale),
       )
    })
+   // 2. Compact the sorted slice, removing consecutive duplicates.
    return slices.CompactFunc(offers, func(a, b *EnrichedOffer) bool {
       return a.Offer.StandardWebUrl == b.Offer.StandardWebUrl &&
          a.Offer.MonetizationType == b.Offer.MonetizationType &&
@@ -133,6 +140,8 @@ func Deduplicate(offers []*EnrichedOffer) []*EnrichedOffer {
    })
 }
 
+// FilterOffers removes offers with unwanted monetization types.
+// If no unwantedTypes are provided, all offers are returned unfiltered.
 func FilterOffers(offers []*EnrichedOffer, unwantedTypes ...string) []*EnrichedOffer {
    unwantedSet := make(map[string]struct{}, len(unwantedTypes))
    for _, unwanted := range unwantedTypes {
@@ -150,8 +159,8 @@ func FilterOffers(offers []*EnrichedOffer, unwantedTypes ...string) []*EnrichedO
 }
 
 type HrefLangTag struct {
-   Href   string
-   Locale string
+   Href   string // /ar/pelicula/mulholland-drive
+   Locale string // es_AR
 }
 
 func (h *HrefLangTag) Offers(localeVar *Locale) ([]Offer, error) {
@@ -202,3 +211,5 @@ type Offer struct {
    MonetizationType string
    StandardWebUrl   string
 }
+
+// justwatch.go
