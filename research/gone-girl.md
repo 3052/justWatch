@@ -1,5 +1,18 @@
 # gone-girl
 
+## https://play.stan.com.au/programs/4190099
+
+country: AU
+name: Australia
+monetization: FLATRATE
+
+bandwidth: 3437500
+width: 1920
+height: 1080
+codecs: avc1.640028
+mimeType: video/mp4
+id: video/avc/3437500
+
 ## https://okko.tv/movie/gone-girl
 
 country: RU
@@ -44,22 +57,10 @@ country: NZ
 name: New Zealand
 monetization: ADS
 
-## https://video.unext.jp/title/SID0017969
-
-country: JP
-name: Japan
-monetization: FLATRATE
-
 ## https://oneplay.cz/film/4683-zmizela
 
 country: CZ
 name: Czech Republic
-monetization: FLATRATE
-
-## https://play.stan.com.au/programs/4190099
-
-country: AU
-name: Australia
 monetization: FLATRATE
 
 ## https://filminlatino.mx/pelicula/perdida
