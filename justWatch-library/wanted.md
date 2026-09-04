@@ -159,6 +159,7 @@
 
 ## 2019
 
+- https://justwatch.com/us/movie/a-vigilante
 - https://justwatch.com/us/movie/bombshell-2019
 - https://justwatch.com/us/movie/cold-pursuit
 - https://justwatch.com/us/movie/greta
